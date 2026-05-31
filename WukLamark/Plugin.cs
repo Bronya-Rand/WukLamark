@@ -59,6 +59,7 @@ public sealed partial class Plugin : IDalamudPlugin
     // ═══════════════════════════════════════════════════════════════
     // PLUGIN CONFIGURATION & SERVICES
     // ═══════════════════════════════════════════════════════════════
+    public const string Name = "WukLamark";
 
     /// <summary>Primary slash command: /wlmark</summary>
     private const string MarkerCommandName = "/wlmark";
@@ -79,7 +80,7 @@ public sealed partial class Plugin : IDalamudPlugin
     public MarkerStorageService MarkerStorageService { get; init; }
 
     /// <summary>Manages rendering of all plugin windows</summary>
-    public readonly WindowSystem WindowSystem = new("WukLamark");
+    public readonly WindowSystem WindowSystem = new(Name);
 
     /// <summary>Main window displaying list of saved map markers and management UI</summary>
     private MainWindow MainWindow { get; init; }
@@ -270,7 +271,7 @@ public sealed partial class Plugin : IDalamudPlugin
             // Legacy fallback (Group) if no modifiers were found
             if (!tMatch.Success && !gMatch.Success)
             {
-                ResultNotifications.SendWarningMessage($"'{MarkerCommandName} here {remainder}' is deprecated. Please use '{MarkerCommandName} here g:\"{remainder}\"' to specify a group.");
+                ResultNotifications.SendMessage($"'{MarkerCommandName} here {remainder}' is deprecated. Please use '{MarkerCommandName} here g:\"{remainder}\"' to specify a group.", MessageType.Warning);
                 groupName = remainder;
             }
 
@@ -280,7 +281,7 @@ public sealed partial class Plugin : IDalamudPlugin
                 template = MarkerStorageService.FindTemplateByName(templateName);
                 if (template == null)
                 {
-                    ResultNotifications.SendErrorMessage($"Template '{templateName}' not found.");
+                    ResultNotifications.SendMessage($"Template '{templateName}' not found.", MessageType.Error);
                     return;
                 }
             }
@@ -291,7 +292,7 @@ public sealed partial class Plugin : IDalamudPlugin
                 group = MarkerService.FindGroupByName(groupName);
                 if (group == null || !MarkerService.CanAddMarkerToGroup(group))
                 {
-                    ResultNotifications.SendErrorMessage($"Group '{groupName}' not found or you lack permission to modify it. Available groups:\n{MarkerService.GetGroupNamesList()}");
+                    ResultNotifications.SendMessage($"Group '{groupName}' not found or you lack permission to modify it. Available groups:\n{MarkerService.GetGroupNamesList()}", MessageType.Error);
                     return;
                 }
             }
@@ -299,7 +300,7 @@ public sealed partial class Plugin : IDalamudPlugin
             // Check if template overrides group
             if (template != null && template.GroupId.HasValue && group != null && template.GroupId.Value != group.Id)
             {
-                ResultNotifications.SendWarningMessage($"The template '{template.Name}' enforces its own group. Ignoring explicitly specified group '{group.Name}'.");
+                ResultNotifications.SendMessage($"The template '{template.Name}' enforces its own group. Ignoring explicitly specified group '{group.Name}'.", MessageType.Warning);
             }
 
             Log.Information($"Saving current location...");
@@ -311,7 +312,7 @@ public sealed partial class Plugin : IDalamudPlugin
         }
 
         // Unknown argument
-        ResultNotifications.SendErrorMessage($"Unknown command. Use '{MarkerCommandName}' to view map markers or '{MarkerCommandName} here' to save current location.");
+        ResultNotifications.SendMessage($"Unknown command. Use '{MarkerCommandName}' to view map markers or '{MarkerCommandName} here' to save current location.", MessageType.Error);
     }
 
     /// <summary>Toggles the visibility of the configuration window</summary>

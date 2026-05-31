@@ -166,7 +166,7 @@ namespace WukLamark.Windows.Tabs.Settings
                     {
                         plugin.MarkerStorageService.ErasePersonalMarkers();
                         plugin.MarkerStorageService.EraseCreatedSharedMarkers();
-                        ResultNotifications.SendSuccessMessage("All markers have been deleted.");
+                        ResultNotifications.SendMessage("All markers have been deleted.", MessageType.Success);
                         ImGui.CloseCurrentPopup();
                     }
 

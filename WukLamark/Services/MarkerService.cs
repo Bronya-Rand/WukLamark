@@ -62,14 +62,14 @@ public sealed class MarkerService(MarkerStorageService storageService)
         var territoryId = Plugin.ClientState.TerritoryType;
         if (territoryId == 0)
         {
-            ResultNotifications.SendErrorMessage("Unable to determine current location.");
+            ResultNotifications.SendMessage("Unable to determine current location.", MessageType.Error);
             return null;
         }
 
         var housingManager = HousingManager.Instance();
         if (housingManager == null)
         {
-            ResultNotifications.SendErrorMessage("Unable to access housing manager for location data.");
+            ResultNotifications.SendMessage("Unable to access housing manager for location data.", MessageType.Error);
             return null;
         }
         var wardId = housingManager->GetCurrentWard();
@@ -78,7 +78,7 @@ public sealed class MarkerService(MarkerStorageService storageService)
         var mapId = Plugin.ClientState.MapId;
         if (mapId == 0)
         {
-            ResultNotifications.SendErrorMessage("Unable to determine current map.");
+            ResultNotifications.SendMessage("Unable to determine current map.", MessageType.Error);
             return null;
         }
 
@@ -86,7 +86,7 @@ public sealed class MarkerService(MarkerStorageService storageService)
         var currentWorldId = player.CurrentWorld.RowId;
         if (currentWorldId == 0)
         {
-            ResultNotifications.SendErrorMessage("Unable to determine current world.");
+            ResultNotifications.SendMessage("Unable to determine current world.", MessageType.Error);
             return null;
         }
 
@@ -137,26 +137,16 @@ public sealed class MarkerService(MarkerStorageService storageService)
 
         if (templateId != null)
         {
-            // Return template + group
-            if (groupName != null)
-            {
-                ResultNotifications.SendSuccessMessage($"Saved marker '{marker.Name}' at current location using template '{template?.Name}' in group '{groupName}'.");
-            }
-            else
-            {
-                // Return template only
-                ResultNotifications.SendSuccessMessage($"Saved marker '{marker.Name}' at current location using template '{template?.Name}'.");
-            }
+            var msg = $"Saved marker '{marker.Name}' at current location using template '{template?.Name}'";
+            msg += groupName != null ? $" in group '{groupName}'." : ".";
+            ResultNotifications.SendMessage(msg, MessageType.Success);
         }
         else if (groupName != null)
-        {
-            ResultNotifications.SendSuccessMessage($"Saved marker '{marker.Name}' at current location in group '{groupName}'.");
-        }
+            ResultNotifications.SendMessage($"Saved marker '{marker.Name}' at current location in group '{groupName}'.", MessageType.Success);
         else
-        {
-            ResultNotifications.SendSuccessMessage($"Saved marker '{marker.Name}' at current location.");
-        }
-        Plugin.Log.Information($"Saved marker: {marker.Name} at {marker.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {marker.Scope})");
+            ResultNotifications.SendMessage($"Saved marker '{marker.Name}' at current location.", MessageType.Success);
+
+        Plugin.Log.Info($"Saved marker: {marker.Name} at {marker.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {marker.Scope})");
 
         return marker;
     }
@@ -170,12 +160,12 @@ public sealed class MarkerService(MarkerStorageService storageService)
         // Validate permissions before allowing deletion
         if (marker.IsReadOnly)
         {
-            ResultNotifications.SendErrorMessage($"Marker '{marker.Name}' is read-only and cannot be deleted.");
+            ResultNotifications.SendMessage($"Marker '{marker.Name}' is read-only and cannot be deleted.", MessageType.Error);
             return;
         }
         if (marker.Scope == MarkerScope.Personal && marker.CharacterHash != storageService.CurrentCharacterHash)
         {
-            ResultNotifications.SendErrorMessage($"You do not have permission to delete marker '{marker.Name}'.");
+            ResultNotifications.SendMessage($"You do not have permission to delete marker '{marker.Name}'.", MessageType.Error);
             return;
         }
 
@@ -218,8 +208,8 @@ public sealed class MarkerService(MarkerStorageService storageService)
         if (groupId.HasValue)
             storageService.AddMarkerToGroup(marker.Id, groupId.Value);
 
-        ResultNotifications.SendSuccessMessage($"Restored map marker '{marker.Name}'.");
-        Plugin.Log.Information($"Undo delete: restored map marker '{marker.Name}' (Scope: {marker.Scope})");
+        ResultNotifications.SendMessage($"Restored map marker '{marker.Name}'.", MessageType.Success);
+        Plugin.Log.Info($"Undo delete: restored map marker '{marker.Name}' (Scope: {marker.Scope})");
 
         return marker;
     }

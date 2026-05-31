@@ -106,10 +106,11 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 {
                     MarkerExportService.ExportShareToClipboard(marker);
 
-                    if (marker.Count == 1)
-                        ResultNotifications.SendSuccessMessage($"Copied marker '{marker.First().Name}' to clipboard!");
-                    else
-                        ResultNotifications.SendSuccessMessage($"Copied {marker.Count} markers to clipboard!");
+                    var successMessage = $"Copied marker '{marker.First().Name}' to clipboard!";
+                    if (marker.Count > 1)
+                        successMessage = $"Copied {marker.Count} markers to clipboard!";
+
+                    ResultNotifications.SendMessage(successMessage, MessageType.Success);
                 },
                 OnSaveRequested = HandleMarkerSave,
             };
@@ -156,7 +157,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 OnExportGroupMarkers = markers =>
                 {
                     MarkerExportService.ExportShareToClipboard(markers);
-                    ResultNotifications.SendSuccessMessage($"Copied {markers.Count} marker(s) to clipboard!");
+                    ResultNotifications.SendMessage($"Copied {markers.Count} marker(s) to clipboard!", MessageType.Success);
                 }
             };
 
@@ -260,7 +261,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
         {
             if (!result.Success)
             {
-                ResultNotifications.SendErrorMessage($"Failed to import map markers: {result.ErrorMessage}");
+                ResultNotifications.SendMessage($"Failed to import map markers: {result.ErrorMessage}", MessageType.Error);
             }
             else if (result.Conflicts.Count > 0)
             {
@@ -278,12 +279,12 @@ namespace WukLamark.Windows.Tabs.MarkerList
 
             if (selected.Count == 0)
             {
-                ResultNotifications.SendErrorMessage("No markers selected for export.");
+                ResultNotifications.SendMessage("No markers selected for export.", MessageType.Error);
                 return;
             }
 
             MarkerExportService.ExportShareToClipboard(selected);
-            ResultNotifications.SendSuccessMessage($"Copied {selected.Count} marker(s) to clipboard.");
+            ResultNotifications.SendMessage($"Copied {selected.Count} marker(s) to clipboard.", MessageType.Success);
         }
 
         /// <summary>
@@ -349,16 +350,10 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 addedMarkers++;
             }
 
+            var msg = $"Imported {addedMarkers} marker(s) to WukLamark.";
             if (overwrittenMarkers > 0)
-            {
-                var msg = $"Imported {addedMarkers} marker(s), overwritten {overwrittenMarkers} marker(s) to WukLamark.";
-                ResultNotifications.SendSuccessMessage(msg, false, true);
-            }
-            else
-            {
-                var msg = $"Imported {addedMarkers} marker(s) to WukLamark.";
-                ResultNotifications.SendSuccessMessage(msg, false, true);
-            }
+                msg = $"Imported {addedMarkers} marker(s), overwritten {overwrittenMarkers} marker(s) to WukLamark.";
+            ResultNotifications.SendMessage(msg, MessageType.Success, false, true);
 
         }
         private void HandleImageUpload(string path)
@@ -367,10 +362,10 @@ namespace WukLamark.Windows.Tabs.MarkerList
             (var success, var message) = Plugin.CustomIconService.SavePNGToCustomIconsDir(path);
             if (!success)
             {
-                ResultNotifications.SendErrorMessage($"Failed to upload custom icon: {message}");
+                ResultNotifications.SendMessage($"Failed to upload custom icon: {message}", MessageType.Error);
                 return;
             }
-            ResultNotifications.SendSuccessMessage($"Successfully uploaded custom icon: {Path.GetFileName(path)}");
+            ResultNotifications.SendMessage($"Successfully uploaded custom icon: {Path.GetFileName(path)}", MessageType.Success);
         }
 
         #endregion

@@ -5,112 +5,58 @@ using Dalamud.Utility;
 
 namespace WukLamark.Utils
 {
-    public sealed class ResultNotifications
+    public enum MessageType
     {
-        #region ChatGui Message Builders
-        private static Dalamud.Game.Text.SeStringHandling.SeString BuildChatSuccessMessage(string message, bool omitPluginName = false)
+        Success,
+        Error,
+        Warning
+    }
+    public static class ResultNotifications
+    {
+        private static Dalamud.Game.Text.SeStringHandling.SeString BuildChatMessage(string message, Vector4 color, bool omitPluginName = false)
         {
-            var successColor = ImGuiColors.SuccessForeground;
-
             var builder = new Lumina.Text.SeStringBuilder()
-                .PushColorRgba(DalamudVector4ToLuminaVector4(successColor))
-                .Append(omitPluginName ? message : $"[WukLamark] {message}")
+                .PushColorRgba(DalamudVector4ToLuminaVector4(color))
+                .Append(omitPluginName ? message : $"[${Plugin.Name}] {message}")
                 .PopColor()
                 .ToReadOnlySeString();
             return builder.ToDalamudString();
         }
-        private static Dalamud.Game.Text.SeStringHandling.SeString BuildChatErrorMessage(string message, bool omitPluginName = false)
-        {
-            var errorColor = ImGuiColors.ErrorForeground;
-
-            var builder = new Lumina.Text.SeStringBuilder()
-                .PushColorRgba(DalamudVector4ToLuminaVector4(errorColor))
-                .Append(omitPluginName ? message : $"[WukLamark] {message}")
-                .PopColor()
-                .ToReadOnlySeString();
-            return builder.ToDalamudString();
-        }
-        private static Dalamud.Game.Text.SeStringHandling.SeString BuildChatWarningMessage(string message, bool omitPluginName = false)
-        {
-            var warningColor = ImGuiColors.WarningForeground;
-
-            var builder = new Lumina.Text.SeStringBuilder()
-                .PushColorRgba(DalamudVector4ToLuminaVector4(warningColor))
-                .Append(omitPluginName ? message : $"[WukLamark] {message}")
-                .PopColor()
-                .ToReadOnlySeString();
-            return builder.ToDalamudString();
-        }
-        #endregion
-        #region Dalamud Notification Builders
-        private static Notification BuildDalamudSuccessMessage(string message) =>
+        private static Notification BuildDalamudNotification(string message, NotificationType type) =>
             new()
-            { Content = message, Type = NotificationType.Success };
-        private static Notification BuildDalamudErrorMessage(string message) =>
-            new()
-            { Content = message, Type = NotificationType.Error };
-        private static Notification BuildDalamudWarningMessage(string message) =>
-            new()
-            { Content = message, Type = NotificationType.Warning };
-        #endregion
-        public static void SendSuccessMessage(string message, bool omitPluginName = false, bool sendBoth = false)
+            { Content = message, Type = type };
+        public static void SendMessage(string message, MessageType messageType, bool omitPluginName = false, bool sendBoth = false)
         {
             // Check login state
             var isLoggedIn = Plugin.ClientState.IsLoggedIn;
 
-            // If sendBoth is true, send both a Dalamud notification and a chat message (if logged in)
-            if (sendBoth)
+            // Send to ChatGui if logged in
+            if (isLoggedIn)
             {
-                var notification = BuildDalamudSuccessMessage(message);
-                Plugin.NotificationManager.AddNotification(notification);
-
-                if (isLoggedIn)
+                var chatMessage = messageType switch
                 {
-                    var chatMessage = BuildChatSuccessMessage(message, omitPluginName);
+                    MessageType.Success => BuildChatMessage(message, ImGuiColors.SuccessForeground, omitPluginName),
+                    MessageType.Error => BuildChatMessage(message, ImGuiColors.ErrorForeground, omitPluginName),
+                    MessageType.Warning => BuildChatMessage(message, ImGuiColors.WarningForeground, omitPluginName),
+                    _ => null,
+                };
+                if (chatMessage == null)
+                    Plugin.Log.Error($"Failed to build chat message for type {messageType}");
+                else
                     Plugin.ChatGui.Print(chatMessage);
-                }
-                return;
             }
 
-            // If logged in, use chat message; otherwise, use Dalamud notification
-            if (isLoggedIn)
+            // Send as notification if not logged in or if sendBoth is true
+            if (!isLoggedIn || sendBoth)
             {
-                var chatMessage = BuildChatSuccessMessage(message, omitPluginName);
-                Plugin.ChatGui.Print(chatMessage);
-
-            }
-            else
-            {
-                var notification = BuildDalamudSuccessMessage(message);
-                Plugin.NotificationManager.AddNotification(notification);
-            }
-        }
-        public static void SendErrorMessage(string message, bool omitPluginName = false)
-        {
-            var isLoggedIn = Plugin.ClientState.IsLoggedIn;
-            if (isLoggedIn)
-            {
-                var chatMessage = BuildChatErrorMessage(message, omitPluginName);
-                Plugin.ChatGui.Print(chatMessage);
-            }
-            else
-            {
-                var notification = BuildDalamudErrorMessage(message);
-                Plugin.NotificationManager.AddNotification(notification);
-            }
-
-        }
-        public static void SendWarningMessage(string message, bool omitPluginName = false)
-        {
-            var isLoggedIn = Plugin.ClientState.IsLoggedIn;
-            if (isLoggedIn)
-            {
-                var chatMessage = BuildChatWarningMessage(message, omitPluginName);
-                Plugin.ChatGui.Print(chatMessage);
-            }
-            else
-            {
-                var notification = BuildDalamudWarningMessage(message);
+                var notificationType = messageType switch
+                {
+                    MessageType.Success => NotificationType.Success,
+                    MessageType.Error => NotificationType.Error,
+                    MessageType.Warning => NotificationType.Warning,
+                    _ => NotificationType.Info
+                };
+                var notification = BuildDalamudNotification(message, notificationType);
                 Plugin.NotificationManager.AddNotification(notification);
             }
         }
