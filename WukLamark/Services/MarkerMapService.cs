@@ -285,10 +285,16 @@ namespace WukLamark.Services
                 var markerShape = template?.DefaultIcon.Shape ?? marker.Icon.Shape;
                 var markerSize = template?.DefaultIcon.Size ?? marker.Icon.Size;
                 var markerColor = template?.DefaultIcon.Color ?? marker.Icon.Color;
-                var gameIconId = template?.DefaultIcon.GameIconId ?? marker.Icon.GameIconId;
-                var customIconName = template?.DefaultIcon.CustomIconName ?? marker.Icon.CustomIconName;
+                var gameIconId = template?.DefaultIcon.GameIconId;
+                var customIconName = template?.DefaultIcon.CustomIconName;
                 var useShapeColor = template?.DefaultIcon.UseShapeColor ?? marker.Icon.UseShapeColor;
                 var visibilityRadius = template?.DefaultIcon.VisibilityRadius ?? marker.Icon.VisibilityRadius;
+
+                if (template == null)
+                {
+                    gameIconId = marker.Icon.GameIconId;
+                    customIconName = marker.Icon.CustomIconName;
+                }
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(markerColor);
                 var baseMarkerSize = configuration.MapMarkerMapSize;
