@@ -51,7 +51,6 @@ public sealed partial class Plugin : IDalamudPlugin
 
     /// <summary>Provides access to the player's state (content ID, etc.)</summary>
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
-
     /// <summary>Provides access to Dalamud's notification system</summary>
     [PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
 
@@ -74,7 +73,6 @@ public sealed partial class Plugin : IDalamudPlugin
     /// <summary>Background service for loading and caching game icons</summary>
     public IconBrowserService IconBrowserService { get; init; }
     public static CustomIconService CustomIconService { get; private set; } = null!;
-
     public GameStateReaderService GameStateReaderService { get; init; } = new();
 
     /// <summary>Handles cross-character marker persistence and scoping</summary>
@@ -100,7 +98,7 @@ public sealed partial class Plugin : IDalamudPlugin
         // Initialize services
         var pluginConfigDir = PluginInterface.GetPluginConfigDirectory();
         MarkerStorageService = new MarkerStorageService(pluginConfigDir, Configuration, ReliableFileStorage);
-        MarkerService = new MarkerService(Configuration, MarkerStorageService);
+        MarkerService = new MarkerService(MarkerStorageService);
         CustomIconService = new CustomIconService(pluginConfigDir);
         IconBrowserService = new IconBrowserService(DataManager);
         GameStateReaderService = new GameStateReaderService();

@@ -287,6 +287,7 @@ public sealed class MarkerStorageService
     }
 
     #endregion
+
     #region Marker CRUD
 
     /// <summary>
@@ -324,6 +325,7 @@ public sealed class MarkerStorageService
     }
 
     #endregion
+
     #region Group CRUD
 
     /// <summary>
@@ -499,7 +501,7 @@ public sealed class MarkerStorageService
     /// <summary>
     /// Finds a template by its GUID.
     /// </summary>
-    public MarkerTemplate? FindTemplateById(Guid id) => templateStore.FindById(id);
+    private MarkerTemplate? FindTemplateById(Guid id) => templateStore.FindById(id);
 
     /// <summary>
     /// Finds a template by exact name (case-insensitive), scoped to the current character.
@@ -643,6 +645,7 @@ public sealed class MarkerStorageService
     }
 
     #endregion
+
     #region Migration
 
     /// <summary>

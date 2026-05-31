@@ -189,13 +189,9 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 marker.GroupId = result.GroupId;
 
                 if (oldScope != marker.Scope)
-                {
                     plugin.MarkerStorageService.ChangeMarkerScope(marker, marker.Scope);
-                }
                 else
-                {
                     plugin.MarkerStorageService.SaveMarker(marker);
-                }
 
                 plugin.MarkerStorageService.MoveMarkerToGroup(marker.Id, result.GroupId);
             }
@@ -203,12 +199,13 @@ namespace WukLamark.Windows.Tabs.MarkerList
             {
                 // For markers using a template, we save template ID and apply group changes
                 // if group change is needed.
-                var template = plugin.MarkerStorageService.FindTemplateById(result.TemplateId.Value);
+                var template = plugin.MarkerStorageService.ResolveTemplate(result.TemplateId.Value);
+                plugin.MarkerStorageService.SaveMarker(marker);
+
                 if (template != null)
-                {
-                    plugin.MarkerStorageService.SaveMarker(marker);
                     plugin.MarkerStorageService.MoveMarkerToGroup(marker.Id, template.GroupId);
-                }
+                else
+                    plugin.MarkerStorageService.MoveMarkerToGroup(marker.Id, null);
             }
         }
 

@@ -98,9 +98,7 @@ namespace WukLamark.Windows.Tabs.Template
             Plugin.Log.Debug($"Saving template: {template.Name} (ID: {template.Id}) - IsEditing: {isEditing}");
             if (isEditing)
             {
-                var existing = template.Id == Guid.Empty
-                    ? plugin.Configuration.DefaultTemplate
-                    : plugin.MarkerStorageService.FindTemplateById(template.Id);
+                var existing = plugin.MarkerStorageService.ResolveTemplate(template.Id);
 
                 if (existing != null)
                 {

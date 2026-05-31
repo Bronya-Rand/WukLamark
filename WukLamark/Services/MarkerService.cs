@@ -11,9 +11,8 @@ namespace WukLamark.Services;
 /// Service class containing business logic for marker operations.
 /// Handles marker creation, deletion, undo, and persistence.
 /// </summary>
-public sealed class MarkerService(Configuration configuration, MarkerStorageService storageService)
+public sealed class MarkerService(MarkerStorageService storageService)
 {
-    private readonly Configuration configuration = configuration;
     private readonly MarkerStorageService storageService = storageService;
 
     /// <summary>
@@ -93,15 +92,7 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
 
         // Determine effective template
         var effectiveTemplateId = isCustom ? (Guid?)null : (templateId ?? Guid.Empty);
-        MarkerTemplate? template = null;
-        if (effectiveTemplateId == Guid.Empty)
-        {
-            template = configuration.DefaultTemplate;
-        }
-        else if (effectiveTemplateId != null)
-        {
-            template = storageService.FindTemplateById(effectiveTemplateId.Value);
-        }
+        var template = storageService.ResolveTemplate(effectiveTemplateId);
 
         // Determine effective group
         var effectiveGroupId = group?.Id;
