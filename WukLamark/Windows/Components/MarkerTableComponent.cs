@@ -128,9 +128,10 @@ internal sealed class MarkerTableComponent
                 if (SelectedMarkerIds.Contains(marker.Id) && IsMultiSelect)
                     ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.GetColorU32(ImGuiCol.ButtonActive));
 
-                DrawMarkerColumn(marker);
-                DrawNameColumn(marker);
-                DrawLocationColumn(marker);
+                var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
+                DrawMarkerColumn(marker, template);
+                DrawNameColumn(marker, template);
+                DrawLocationColumn(marker, template);
                 DrawCreatedColumn(marker);
             }
         }
@@ -155,11 +156,10 @@ internal sealed class MarkerTableComponent
         }
     }
 
-    private void DrawMarkerColumn(Marker marker)
+    private void DrawMarkerColumn(Marker marker, MarkerTemplate? template = null)
     {
         ImGui.TableSetColumnIndex(0);
 
-        var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
         var icon = marker.GetEffectiveIcon(template);
 
         var colorU32 = ImGui.ColorConvertFloat4ToU32(icon.Color);
@@ -177,11 +177,10 @@ internal sealed class MarkerTableComponent
         ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
     }
 
-    private void DrawNameColumn(Marker marker)
+    private void DrawNameColumn(Marker marker, MarkerTemplate? template = null)
     {
         ImGui.TableSetColumnIndex(1);
 
-        var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
         var effectiveScope = marker.GetEffectiveScope(template);
         var markerGroup = plugin.MarkerStorageService.GetGroupIdForMarker(marker.Id);
 
@@ -213,11 +212,10 @@ internal sealed class MarkerTableComponent
                 ImGui.SetTooltip(marker.Notes);
     }
 
-    private void DrawLocationColumn(Marker marker)
+    private void DrawLocationColumn(Marker marker, MarkerTemplate? template = null)
     {
         ImGui.TableSetColumnIndex(2);
 
-        var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
         var effectiveAllWorlds = marker.GetEffectiveAppliesToAllWorlds(template);
 
         var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId, effectiveAllWorlds);
