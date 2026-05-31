@@ -134,9 +134,9 @@ public sealed partial class Plugin : IDalamudPlugin
             HelpMessage = $"""
             Manage and view your custom map markers.
             {MarkerCommandName} here → Save your current location as a map marker.
-            {MarkerCommandName} here g:<Group> → Save to a specific group.
-            {MarkerCommandName} here t:<Template> → Save using a specific template.
-            {MarkerCommandName} here t:<Template> g:<Group> → Save using template and group (group ignored if template enforces its own group).
+            {MarkerCommandName} here g:"<Group>" → Save to a specific group.
+            {MarkerCommandName} here t:"<Template>" → Save using a specific template.
+            {MarkerCommandName} here t:"<Template>" g:"<Group>" → Save using template and group (group ignored if template enforces its own group).
             """, ShowInHelp = true
         });
         // Also register an alias for the command
