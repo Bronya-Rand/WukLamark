@@ -222,7 +222,7 @@ namespace WukLamark.Windows.Components
             var isCreator = template.CharacterHash != null &&
                 plugin.MarkerStorageService.CurrentCharacterHash != null &&
                 template.CharacterHash == plugin.MarkerStorageService.CurrentCharacterHash;
-            var canAdd = template.DefaultScope == MarkerScope.Personal && isCreator ||
+            var canAdd = (template.DefaultScope == MarkerScope.Personal && isCreator) ||
                          template.DefaultScope == MarkerScope.Shared;
 
             ImGui.TableSetColumnIndex(3);

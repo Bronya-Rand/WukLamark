@@ -22,10 +22,10 @@ namespace WukLamark.Windows.Components;
 /// <b>Modal mode:</b> The editor owns the <see cref="ImGui.OpenPopup"/> call.
 /// </para>
 /// </remarks>
-internal sealed class TemplateEditor
+internal sealed class TemplateEditor(Plugin plugin)
 {
-    private readonly Plugin plugin;
-    private readonly IconEditFields iconEditFields;
+    private readonly Plugin plugin = plugin;
+    private readonly IconEditFields iconEditFields = new(plugin);
     private bool shouldOpenModal;
 
     #region Editing State
@@ -41,12 +41,6 @@ internal sealed class TemplateEditor
     #endregion
 
     public Action<MarkerTemplate, bool>? OnSave { get; set; }
-
-    public TemplateEditor(Plugin plugin)
-    {
-        this.plugin = plugin;
-        iconEditFields = new IconEditFields(plugin);
-    }
 
     /// <summary>
     /// Loads editing state from an existing template (edit mode) or resets to defaults (create mode).

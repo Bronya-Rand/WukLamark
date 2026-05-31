@@ -10,10 +10,10 @@ namespace WukLamark.Windows.Components;
 /// <summary>
 /// Represents a popup dialog for editing marker properties.
 /// </summary>
-internal sealed class MarkerEditPopup
+internal sealed class MarkerEditPopup(Plugin plugin)
 {
-    private readonly Plugin plugin;
-    private readonly IconEditFields iconEditFields;
+    private readonly Plugin plugin = plugin;
+    private readonly IconEditFields iconEditFields = new(plugin);
 
     #region Editing State
 
@@ -29,12 +29,6 @@ internal sealed class MarkerEditPopup
     #endregion
 
     public Action<Marker, MarkerEditResult>? OnSave { get; set; }
-
-    public MarkerEditPopup(Plugin plugin)
-    {
-        this.plugin = plugin;
-        iconEditFields = new IconEditFields(plugin);
-    }
 
     /// <summary>
     /// Loads editing state from the given marker.
