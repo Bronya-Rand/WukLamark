@@ -1,24 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
-  <PropertyGroup>
-    <Version>1.1.1.3</Version>
-    <Author>Bronya Rand</Author>
-    <Company>Bronya Rand</Company>
-    <Name>WukLamark</Name>
-    <AssemblyName>WukLamark</AssemblyName>
-    <Punchline>Create custom map markers on the map/minimap! Like &lt;flag&gt; but permanent.</Punchline>
-    <Description>Allows players to create and manage persistent custom map markers across Eorzea. Whether it's a favorite GPose spot, a venue you want to revisit, or any interesting location, WukLamark lets you drop a map marker that appears seamlessly on both your main map and minimap.
+    <PropertyGroup>
+        <Version>1.2.0.1</Version>
+        <Author>Bronya Rand</Author>
+        <Company>Bronya Rand</Company>
+        <Name>WukLamark</Name>
+        <AssemblyName>WukLamark</AssemblyName>
+        <Punchline>Create custom map markers on the map/minimap! Like &lt;flag&gt; but permanent.</Punchline>
+        <Description>Allows players to create and manage persistent custom map markers across Eorzea. Whether it's a favorite GPose spot, a venue you want to revisit, or any interesting location, WukLamark lets you drop a map marker that appears seamlessly on both your main map and minimap.
 
 Features:
 - Customizable game icons and shapes for map markers (with optional icon tinting)
 - Per-marker icon/shape sizes
 - Custom map marker icons.
    &gt; To add a custom icon, open the WukLamark window and click on 'Upload a new custom icon'.
-- Organize map markers into groups (with map marker import/export)
-- Cross-character sharing configurations
-- Crossworld markers
-- Add personal notes for context
-- Import/export one or multiple map markers with friends
+- Per-marker icon/shape sizes.
+- Organize map markers into groups (with map marker import/export).
+- Cross-character sharing configurations.
+- Crossworld markers.
+- Add personal notes for context.
+- Import/export one or multiple map markers with friends.
+- Templates for quick map marker creation with predefined properties.
 - Partial support for Native markers*
 &gt; * - Only applicable to the map, not the minimap.
 

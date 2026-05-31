@@ -1,8 +1,8 @@
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
-using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Render;
 using WukLamark.Services;
@@ -55,11 +55,11 @@ namespace WukLamark.Windows
             var mousePos = ImGui.GetMousePos();
             string? hoveredMarkerName = null;
 
-            foreach (var (position, markerIcon, fadedColor, markerSize, name, notes) in service.MarkersToRender)
+            foreach (var (position, shape, size, color, name, notes, iconId, customIconName, useShapeColorOnIcon) in service.MarkersToRender)
             {
-                MarkerRenderer.RenderMarker(drawList, position, markerIcon, markerSize, fadedColor);
+                MarkerRenderer.RenderMarker(drawList, position, shape, size, color, iconId, customIconName, useShapeColorOnIcon);
                 if (!plugin.Configuration.ShowWaymarkTooltips) continue;
-                if (Vector2.Distance(mousePos, position) > markerIcon.Size + (2.0f * ImGuiHelpers.GlobalScale)) continue;
+                if (Vector2.Distance(mousePos, position) > size + (2.0f * ImGuiHelpers.GlobalScale)) continue;
 
                 var safeName = name.IsNullOrEmpty() ? "Unnamed Marker" : name;
                 var formattedNotes = MapHelper.FormatMapTooltipNotes(notes);

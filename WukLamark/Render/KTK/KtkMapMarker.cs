@@ -1,6 +1,6 @@
-using KamiToolKit.Overlay.MapOverlay;
 using System;
 using System.Numerics;
+using KamiToolKit.Overlay.MapOverlay;
 
 namespace WukLamark.Render.KTK
 {
@@ -19,7 +19,7 @@ namespace WukLamark.Render.KTK
         internal bool useTint;
         internal Vector3 tintColor = Vector3.One;
 
-        public void Apply(uint mapId, Vector2 worldPosition, string tooltip, uint? gameIconId, Vector2 iconSize, bool useTint, Vector3 tintColor)
+        public void Apply(uint mapId, Vector2 worldPosition, string tooltip, uint? gameIconId, Vector2 iconSize, bool useTint, Vector3 tintColor, string? texturePath)
         {
             this.mapId = mapId;
             this.worldPosition = worldPosition;
@@ -28,6 +28,8 @@ namespace WukLamark.Render.KTK
             this.iconSize = iconSize;
             this.useTint = useTint;
             this.tintColor = tintColor;
+
+            TexturePath = texturePath;
         }
         protected override void OnUpdate()
         {

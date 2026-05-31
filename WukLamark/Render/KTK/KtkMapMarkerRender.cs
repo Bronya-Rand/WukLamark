@@ -1,9 +1,9 @@
-using Dalamud.Interface.Utility;
-using Dalamud.Utility;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using Dalamud.Interface.Utility;
+using Dalamud.Utility;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
@@ -55,25 +55,25 @@ namespace WukLamark.Render.KTK
             markersSeen.Clear();
         }
 
-        public void RenderMarker(uint selectedMapId, float uiScale, MapMarkerData markerInfo)
+        public void RenderMarker(uint selectedMapId, float uiScale, MarkerMapRenderData markerInfo)
         {
             var safeName = markerInfo.Name.IsNullOrEmpty() ? "Unnamed Marker" : markerInfo.Name;
             var formattedNotes = MapHelper.FormatMapTooltipNotes(markerInfo.Notes);
             var tooltipText = formattedNotes.Length > 0 ? $"{safeName}\n{formattedNotes}" : safeName;
 
             var markerId = markerInfo.Id;
-            var markerSize = markerInfo.MarkerSize * 1.5f * uiScale * ImGuiHelpers.GlobalScale;
+            var markerSize = markerInfo.Size * 1.5f * uiScale;
 
-            var iconId = markerInfo.Icon.GameIconId;
-            var useShapeColor = markerInfo.Icon.UseShapeColor;
-            if (iconId == null && markerInfo.Icon.SourceType == MarkerIconType.Shape)
+            var iconId = markerInfo.GameIconId;
+            var useShapeColor = markerInfo.UseShapeColor;
+            if (iconId == null && markerInfo.SourceType == MarkerIconType.Shape)
             {
                 iconId = DefaultIconId;
                 useShapeColor = true;
             }
 
             // For some reason, texture path works best than using Texture?
-            var texturePath = !markerInfo.Icon.CustomIconName.IsNullOrEmpty() ? Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "CustomIcons", markerInfo.Icon.CustomIconName) : null;
+            var texturePath = !markerInfo.CustomIconName.IsNullOrEmpty() ? Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "CustomIcons", markerInfo.CustomIconName) : null;
 
             // Create a new marker if it doesn't exist, or retrieve the existing one.
             if (!activeMarkers.TryGetValue(markerId, out var mapMarker))
@@ -83,7 +83,7 @@ namespace WukLamark.Render.KTK
                 plugin.MapOverlayController!.AddMarker(mapMarker);
             }
 
-            var vector3Color = new Vector3(markerInfo.Icon.Color.X, markerInfo.Icon.Color.Y, markerInfo.Icon.Color.Z);
+            var vector4Color = new Vector3(markerInfo.Color.X, markerInfo.Color.Y, markerInfo.Color.Z);
 
             mapMarker.Apply(
                 selectedMapId,
@@ -92,7 +92,8 @@ namespace WukLamark.Render.KTK
                 iconId,
                 new Vector2(markerSize, markerSize),
                 useShapeColor,
-                vector3Color
+                vector4Color,
+                texturePath
                 );
 
             markersSeen.Add(markerId);

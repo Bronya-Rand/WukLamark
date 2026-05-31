@@ -1,7 +1,7 @@
-using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections.Modals

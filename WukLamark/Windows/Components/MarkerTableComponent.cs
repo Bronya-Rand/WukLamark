@@ -1,11 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
-using System;
-using System.Collections.Generic;
-using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Render;
@@ -55,6 +55,7 @@ internal sealed class MarkerTableComponent
             ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable);
         if (!markerTableMode) return;
 
+        // Setup columns
         ImGui.TableSetupColumn("Marker", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 100);
         ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 160);
@@ -74,14 +75,43 @@ internal sealed class MarkerTableComponent
                 var rowHeight = Math.Max(ImGui.GetFrameHeight(), 20f * ImGuiHelpers.GlobalScale);
 
                 var isSelected = SelectedMarkerIds.Contains(marker.Id);
-                var rowClicked = ImGui.Selectable($"##row_{marker.Id}",
+                var rowClicked = ImGui.Selectable($"##Mrow_{marker.Id}",
                     isSelected,
-                    ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap,
+                    ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap | ImGuiSelectableFlags.AllowDoubleClick,
                     new Vector2(0, rowHeight));
 
                 ImGui.SetItemAllowOverlap();
 
-                ImGui.OpenPopupOnItemClick($"MarkerContextMenu##{marker.Id}", ImGuiPopupFlags.MouseButtonRight);
+                // Mouse interactions
+                if (ImGui.IsItemHovered())
+                {
+                    var io = ImGui.GetIO();
+
+                    // 1. Double-Click for Editing
+                    if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+                    {
+                        GetPermissionsForMarker(marker, parentGroup, out _, out _, out var canEdit, out _);
+                        if (canEdit)
+                            HandleOnEditMarker(marker, parentGroup);
+                    }
+                    else if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+                    {
+                        // 2. Shift + Right-Click for Flag on Map
+                        if (io.KeyShift)
+                        {
+                            GetPermissionsForMarker(marker, parentGroup, out var isLoggedIn, out _, out _, out _);
+                            if (isLoggedIn)
+                                OnFlagRequested?.Invoke(marker);
+                        }
+                        else
+                        {
+                            // 3. Right-Click for Context Menu
+                            ImGui.OpenPopup($"MarkerContextMenu##{marker.Id}");
+                        }
+                    }
+                }
+
+                // Context Menu
                 using (var popup = ImRaii.Popup($"MarkerContextMenu##{marker.Id}"))
                 {
                     if (popup)
@@ -100,9 +130,10 @@ internal sealed class MarkerTableComponent
                 if (SelectedMarkerIds.Contains(marker.Id) && IsMultiSelect)
                     ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.GetColorU32(ImGuiCol.ButtonActive));
 
-                DrawMarkerColumn(marker);
-                DrawNameColumn(marker);
-                DrawLocationColumn(marker);
+                var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
+                DrawMarkerColumn(marker, template);
+                DrawNameColumn(marker, template);
+                DrawLocationColumn(marker, template);
                 DrawCreatedColumn(marker);
             }
         }
@@ -127,40 +158,50 @@ internal sealed class MarkerTableComponent
         }
     }
 
-    private static void DrawMarkerColumn(Marker marker)
+    private void DrawMarkerColumn(Marker marker, MarkerTemplate? template = null)
     {
         ImGui.TableSetColumnIndex(0);
+
+        var icon = marker.GetEffectiveIcon(template);
 
         var globalScale = ImGuiHelpers.GlobalScale;
         MarkerRenderer.RenderMarker(
             ImGui.GetWindowDrawList(),
             ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
-            marker.Icon,
-            MaxIconHeight * globalScale,
-            marker.Icon.Color
+            icon.Shape,
+            8f * globalScale,
+            icon.Color,
+            icon.GameIconId,
+            icon.CustomIconName,
+            icon.UseShapeColor
         );
         ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
     }
 
-    private static void DrawNameColumn(Marker marker)
+    private void DrawNameColumn(Marker marker, MarkerTemplate? template = null)
     {
         ImGui.TableSetColumnIndex(1);
 
-        if (marker.GroupId == null)
+        var effectiveScope = marker.GetEffectiveScope(template);
+        var markerGroup = plugin.MarkerStorageService.GetGroupIdForMarker(marker.Id);
+
+        if (markerGroup == null)
         {
             using (ImRaii.PushFont(UiBuilder.IconFont))
             {
-                var icon = marker.Scope == MarkerScope.Personal ? FontAwesomeIcon.EyeSlash
-                    : marker.Scope == MarkerScope.Shared && marker.IsReadOnly ? FontAwesomeIcon.Lock
-                    : marker.Scope == MarkerScope.Shared ? FontAwesomeIcon.Users : FontAwesomeIcon.Question;
+                var icon = effectiveScope == MarkerScope.Personal ? FontAwesomeIcon.EyeSlash
+                    : effectiveScope == MarkerScope.Shared && marker.IsReadOnly ? FontAwesomeIcon.Lock
+                    : effectiveScope == MarkerScope.Shared ? FontAwesomeIcon.Users : FontAwesomeIcon.Question;
                 ImGui.TextDisabled(icon.ToIconString());
             }
             if (ImGui.IsItemHovered())
             {
-                var tooltip = marker.Scope == MarkerScope.Personal ? "Personal Marker" :
-                              marker.Scope == MarkerScope.Shared && marker.IsReadOnly ? "Shared Read-Only Marker" :
-                              marker.Scope == MarkerScope.Shared ? "Shared Marker" :
+                var tooltip = effectiveScope == MarkerScope.Personal ? "Personal Marker" :
+                              effectiveScope == MarkerScope.Shared && marker.IsReadOnly ? "Shared Read-Only Marker" :
+                              effectiveScope == MarkerScope.Shared ? "Shared Marker" :
                               "Unknown Scope Marker";
+                if (marker.TemplateId != null)
+                    tooltip += " (Template Enforced)";
                 ImGui.SetTooltip(tooltip);
             }
             ImGui.SameLine();
@@ -172,11 +213,13 @@ internal sealed class MarkerTableComponent
                 ImGui.SetTooltip(marker.Notes);
     }
 
-    private static void DrawLocationColumn(Marker marker)
+    private void DrawLocationColumn(Marker marker, MarkerTemplate? template = null)
     {
         ImGui.TableSetColumnIndex(2);
 
-        var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId, marker.AppliesToAllWorlds);
+        var effectiveAllWorlds = marker.GetEffectiveAppliesToAllWorlds(template);
+
+        var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId, effectiveAllWorlds);
         ImGui.Text(locationText);
         if (ImGui.IsItemHovered())
         {
@@ -185,14 +228,14 @@ internal sealed class MarkerTableComponent
                 ImGui.Text($"Position: X: {marker.Position.X:F2}, Y: {marker.Position.Y:F2}, Z: {marker.Position.Z:F2}");
                 ImGui.Text($"Territory ID: {marker.TerritoryId}");
                 ImGui.Text($"Map ID: {marker.MapId}");
-                ImGui.Text(marker.AppliesToAllWorlds ? "World ID: All Worlds/Data Centers" : $"World ID: {marker.WorldId}");
+                ImGui.Text(effectiveAllWorlds ? "World ID: All Worlds/Data Centers" : $"World ID: {marker.WorldId}");
                 if (marker.WardId != -1)
                     ImGui.Text($"Ward ID: {marker.WardId}");
             }
         }
     }
 
-    private static void DrawCreatedColumn(Marker marker)
+    private void DrawCreatedColumn(Marker marker)
     {
         ImGui.TableSetColumnIndex(3);
         ImGui.Text(marker.CreatedAt.ToString("yyyy-MM-dd HH:mm"));
@@ -210,12 +253,8 @@ internal sealed class MarkerTableComponent
 
         using (ImRaii.Disabled(!canEdit))
             if (ImGui.MenuItem("Edit Marker"))
-            {
-                pendingEditMarker = marker;
-                pendingEditParentGroup = parentGroup;
-                pendingEditPopupOpenRequested = true;
-                editPopup.LoadFromMarker(marker);
-            }
+                HandleOnEditMarker(marker, parentGroup);
+
         if (!canEdit)
         {
             var tooltip = GetEditMarkerTooltipText(marker, parentGroup);
@@ -317,6 +356,13 @@ internal sealed class MarkerTableComponent
         SelectedMarkerIds.Add(clickedId);
         selectionAnchorIndex = clickedIndex;
     }
+    private void HandleOnEditMarker(Marker marker, MarkerGroup? parentGroup)
+    {
+        pendingEditMarker = marker;
+        pendingEditParentGroup = parentGroup;
+        pendingEditPopupOpenRequested = true;
+        editPopup.LoadFromMarker(marker, parentGroup);
+    }
     private void GetPermissionsForMarker(Marker marker, MarkerGroup? parentGroup, out bool isLoggedIn, out bool isCreator, out bool canEdit, out bool canDelete)
     {
         var currentPlayerHash = plugin.MarkerStorageService.CurrentCharacterHash;
@@ -395,12 +441,7 @@ internal sealed class MarkerTableComponent
     }
     private bool CanDeleteMarker(Marker marker)
     {
-        var currentPlayerHash = plugin.MarkerStorageService.CurrentCharacterHash;
-        var isCreator = marker.CharacterHash != null &&
-                        currentPlayerHash != null &&
-                        marker.CharacterHash == currentPlayerHash;
-
-        return (marker.Scope == MarkerScope.Shared && !marker.IsReadOnly) ||
-               (marker.Scope == MarkerScope.Personal && isCreator);
+        GetPermissionsForMarker(marker, null, out var _, out var _, out var _, out var canDelete);
+        return canDelete;
     }
 }

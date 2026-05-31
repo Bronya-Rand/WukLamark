@@ -1,7 +1,7 @@
-using Dalamud.Bindings.ImGui;
-using Dalamud.Utility;
 using System;
 using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Utility;
 using WukLamark.Helpers;
 using WukLamark.Services;
 
@@ -24,16 +24,23 @@ namespace WukLamark.Render.IGui
             drawList = ImGui.GetBackgroundDrawList();
             mousePos = ImGui.GetMousePos();
         }
-        public void RenderMarker(uint selectedMapId, float uiScale, MapMarkerData markerInfo)
+        public void RenderMarker(uint selectedMapId, float _, MarkerMapRenderData markerInfo)
         {
             var safeName = markerInfo.Name.IsNullOrEmpty() ? "Unnamed Marker" : markerInfo.Name;
             var formattedNotes = MapHelper.FormatMapTooltipNotes(markerInfo.Notes);
             var tooltipText = formattedNotes.Length > 0 ? $"{safeName}\n{formattedNotes}" : safeName;
 
-            MarkerRenderer.RenderMarker(drawList, markerInfo.ScreenPosition, markerInfo.Icon, markerInfo.MarkerSize, markerInfo.FadedColor);
+            MarkerRenderer.RenderMarker(drawList, 
+                markerInfo.ScreenPosition, 
+                markerInfo.Shape, 
+                markerInfo.Size, 
+                markerInfo.Color, 
+                markerInfo.GameIconId, 
+                markerInfo.CustomIconName, 
+                markerInfo.UseShapeColor);
 
             if (!plugin.Configuration.ShowWaymarkTooltips) return;
-            if (Vector2.Distance(mousePos, markerInfo.ScreenPosition) > markerInfo.MarkerSize + 2.0f) return;
+            if (Vector2.Distance(mousePos, markerInfo.ScreenPosition) > markerInfo.Size + 2.0f) return;
 
             ImGui.SetTooltip(tooltipText);
         }

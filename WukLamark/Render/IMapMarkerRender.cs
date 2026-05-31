@@ -10,7 +10,7 @@ namespace WukLamark.Render
     {
         bool IsEnabled { get; }
         void BeginRender();
-        void RenderMarker(uint selectedMapId, float uiScale, MapMarkerData markerInfo);
+        void RenderMarker(uint selectedMapId, float uiScale, MarkerMapRenderData markerInfo);
         void EndRender();
     }
 }
