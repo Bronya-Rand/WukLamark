@@ -91,7 +91,7 @@ public sealed partial class Plugin : IDalamudPlugin
 
     /// <summary>Service for rendering map markers on the full-screen area map</summary>
     private MarkerMapService MarkerMapService { get; init; }
-    internal MapOverlayController MapOverlayController { get; init; } // KTK overlay controller
+    internal MapOverlayController MapOverlayController { get; private set; } = null!; // KTK overlay controller
 
     /// <summary>Service for rendering map markers on the minimap</summary>
     private MarkerMinimapService MarkerMinimapService { get; init; }
@@ -132,8 +132,11 @@ public sealed partial class Plugin : IDalamudPlugin
         MarkerMinimapService = new MarkerMinimapService(this);
 
         KamiToolKitLibrary.Initialize(PluginInterface, Name);
-        MapOverlayController = new MapOverlayController();
-        Log.Debug("Initialized KTK.");
+        Framework.RunOnFrameworkThread(() =>
+        {
+            MapOverlayController = new MapOverlayController();
+            Log.Debug("Initialized KTK.");
+        }).Wait();
 
         WindowSystem.AddWindow(MainWindow);
 
@@ -143,9 +146,9 @@ public sealed partial class Plugin : IDalamudPlugin
             HelpMessage = $"""
             Manage and view your custom map markers.
             {MarkerCommandName} here → Save your current location as a map marker.
-            {MarkerCommandName} here g:<Group> → Save to a specific group.
-            {MarkerCommandName} here t:<Template> → Save using a specific template.
-            {MarkerCommandName} here t:<Template> g:<Group> → Save using template and group (group ignored if template enforces its own group).
+            {MarkerCommandName} here g:"<Group>" → Save to a specific group.
+            {MarkerCommandName} here t:"<Template>" → Save using a specific template.
+            {MarkerCommandName} here t:"<Template>" g:"<Group>" → Save using template and group (group ignored if template enforces its own group).
             """, ShowInHelp = true
         });
         // Also register an alias for the command
