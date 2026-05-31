@@ -1,7 +1,7 @@
-using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using WukLamark.Models;
 using WukLamark.Utils;
 
@@ -11,15 +11,14 @@ namespace WukLamark.Services;
 /// Service class containing business logic for marker operations.
 /// Handles marker creation, deletion, undo, and persistence.
 /// </summary>
-public sealed class MarkerService(Configuration configuration, MarkerStorageService storageService)
+public sealed class MarkerService(MarkerStorageService storageService)
 {
-    private readonly Configuration configuration = configuration;
     private readonly MarkerStorageService storageService = storageService;
 
     /// <summary>
-    /// Undo buffer for recently deleted markers.
+    /// Undo buffer for recently deleted markers. Stores the marker and its original group ID.
     /// </summary>
-    private readonly LinkedList<Marker> deletedMarkers = new();
+    private readonly LinkedList<(Marker Marker, Guid? GroupId)> deletedMarkers = new();
 
     /// <summary>Maximum number of deletions to remember for undo.</summary>
     private const int MaxUndoHistory = 10;
@@ -48,7 +47,9 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
     public unsafe Marker? SaveCurrentLocation(
         MarkerGroup? group = null,
         MarkerScope scope = MarkerScope.Personal,
-        bool crossworld = false)
+        bool crossworld = false,
+        Guid? templateId = null,
+        bool isCustom = false)
     {
         // Verify player is logged in
         if (!Plugin.ClientState.IsLoggedIn) return null;
@@ -61,14 +62,14 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         var territoryId = Plugin.ClientState.TerritoryType;
         if (territoryId == 0)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("Unable to determine current location."));
+            ResultNotifications.SendMessage("Unable to determine current location.", MessageType.Error);
             return null;
         }
 
         var housingManager = HousingManager.Instance();
         if (housingManager == null)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("Unable to access housing manager for location data."));
+            ResultNotifications.SendMessage("Unable to access housing manager for location data.", MessageType.Error);
             return null;
         }
         var wardId = housingManager->GetCurrentWard();
@@ -77,7 +78,7 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         var mapId = Plugin.ClientState.MapId;
         if (mapId == 0)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("Unable to determine current map."));
+            ResultNotifications.SendMessage("Unable to determine current map.", MessageType.Error);
             return null;
         }
 
@@ -85,12 +86,23 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         var currentWorldId = player.CurrentWorld.RowId;
         if (currentWorldId == 0)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("Unable to determine current world."));
+            ResultNotifications.SendMessage("Unable to determine current world.", MessageType.Error);
             return null;
         }
 
+        // Determine effective template
+        var effectiveTemplateId = isCustom ? (Guid?)null : (templateId ?? Guid.Empty);
+        var template = storageService.ResolveTemplate(effectiveTemplateId);
+
+        // Determine effective group
+        var effectiveGroupId = group?.Id;
+        if (template != null && template.GroupId.HasValue)
+        {
+            effectiveGroupId = template.GroupId.Value;
+        }
+
         // Create a new marker with current location data
-        var totalCount = storageService.PersonalMarkers.Count + storageService.SharedMarkers.Count;
+        var totalCount = storageService.GetTotalMarkerCount();
         var marker = new Marker
         {
             Position = player.Position,
@@ -99,42 +111,42 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
             WorldId = currentWorldId,
             WardId = wardId,
             Name = $"Marker {totalCount + 1}",
-            Icon = new MarkerIcon
+            Icon = template?.DefaultIcon ?? new MarkerIcon
             {
                 Color = Colors.GetNextColor(totalCount),
-                Shape = configuration.DefaultWaymarkShape,
+                Shape = MarkerShape.Circle,
                 SourceType = MarkerIconType.Shape,
             },
             CreatedAt = DateTime.Now,
-            GroupId = group?.Id,
-            Scope = scope,
-            CharacterHash = storageService.CurrentCharacterHash, // Set creator for both personal and shared
-            IsReadOnly = group?.IsReadOnly ?? false, // Use group's read-only status if available
-            AppliesToAllWorlds = crossworld
+            Scope = template?.DefaultScope ?? scope,
+            CharacterHash = storageService.CurrentCharacterHash,
+            IsReadOnly = group?.IsReadOnly ?? false,
+            AppliesToAllWorlds = template?.DefaultAppliesToAllWorlds ?? crossworld,
+            TemplateId = effectiveTemplateId
         };
 
-        // Persist to correct storage based on scope
-        if (scope == MarkerScope.Shared)
-        {
-            storageService.SharedMarkers.Add(marker);
-            storageService.SaveSharedMarkers();
-        }
-        else
-        {
-            storageService.PersonalMarkers.Add(marker);
-            storageService.SavePersonalMarkers();
-        }
+        // Persist marker to its own {Id}.json file
+        storageService.SaveMarker(marker);
+
+        // If a group was specified, add this marker to the group's MarkerIds list
+        if (effectiveGroupId != null)
+            storageService.AddMarkerToGroup(marker.Id, effectiveGroupId.Value);
 
         // Provide user feedback
-        if (group != null)
+        var groupName = group?.Name ?? (effectiveGroupId.HasValue ? storageService.FindGroupById(effectiveGroupId.Value)?.Name : null);
+
+        if (templateId != null)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Saved marker '{marker.Name}' at current location in group '{group.Name}'."));
+            var msg = $"Saved marker '{marker.Name}' at current location using template '{template?.Name}'";
+            msg += groupName != null ? $" in group '{groupName}'." : ".";
+            ResultNotifications.SendMessage(msg, MessageType.Success);
         }
+        else if (groupName != null)
+            ResultNotifications.SendMessage($"Saved marker '{marker.Name}' at current location in group '{groupName}'.", MessageType.Success);
         else
-        {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Saved marker '{marker.Name}' at current location."));
-        }
-        Plugin.Log.Information($"Saved marker: {marker.Name} at {marker.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {scope})");
+            ResultNotifications.SendMessage($"Saved marker '{marker.Name}' at current location.", MessageType.Success);
+
+        Plugin.Log.Info($"Saved marker: {marker.Name} at {marker.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {marker.Scope})");
 
         return marker;
     }
@@ -148,12 +160,12 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         // Validate permissions before allowing deletion
         if (marker.IsReadOnly)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"Marker '{marker.Name}' is read-only and cannot be deleted."));
+            ResultNotifications.SendMessage($"Marker '{marker.Name}' is read-only and cannot be deleted.", MessageType.Error);
             return;
         }
         if (marker.Scope == MarkerScope.Personal && marker.CharacterHash != storageService.CurrentCharacterHash)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"You do not have permission to delete marker '{marker.Name}'."));
+            ResultNotifications.SendMessage($"You do not have permission to delete marker '{marker.Name}'.", MessageType.Error);
             return;
         }
 
@@ -164,17 +176,14 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
             deletedMarkers.RemoveLast();
         }
 
+        // Get group membership before deleting
+        var groupId = storageService.GetGroupIdForMarker(marker.Id);
+
         // Add newest entry at front
-        deletedMarkers.AddFirst(marker);
+        deletedMarkers.AddFirst((marker, groupId));
 
-        // Remove from whichever storage contains it
-        var removedFromPersonal = storageService.PersonalMarkers.Remove(marker);
-        var removedFromShared = storageService.SharedMarkers.Remove(marker);
-
-        if (removedFromPersonal)
-            storageService.SavePersonalMarkers();
-        if (removedFromShared)
-            storageService.SaveSharedMarkers();
+        // Delete from storage (also removes from any group's MarkerIds)
+        storageService.DeleteMarker(marker.Id);
 
         Plugin.Log.Information($"Deleted marker: {marker.Name} (undo available)");
     }
@@ -189,22 +198,18 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
             return null;
 
         // Remove from front (most recent)
-        var marker = deletedMarkers.First!.Value;
+        var (marker, groupId) = deletedMarkers.First!.Value;
         deletedMarkers.RemoveFirst();
 
-        if (marker.Scope == MarkerScope.Shared)
-        {
-            storageService.SharedMarkers.Add(marker);
-            storageService.SaveSharedMarkers();
-        }
-        else
-        {
-            storageService.PersonalMarkers.Add(marker);
-            storageService.SavePersonalMarkers();
-        }
+        // Re-save the marker (creates a new file since the old one was deleted)
+        storageService.SaveMarker(marker);
 
-        Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Restored map marker '{marker.Name}'."));
-        Plugin.Log.Information($"Undo delete: restored map marker '{marker.Name}' (Scope: {marker.Scope})");
+        // Restore to original group if it had one
+        if (groupId.HasValue)
+            storageService.AddMarkerToGroup(marker.Id, groupId.Value);
+
+        ResultNotifications.SendMessage($"Restored map marker '{marker.Name}'.", MessageType.Success);
+        Plugin.Log.Info($"Undo delete: restored map marker '{marker.Name}' (Scope: {marker.Scope})");
 
         return marker;
     }
