@@ -82,6 +82,9 @@ namespace WukLamark.Render.KTK
                 activeMarkers[markerId] = mapMarker;
                 plugin.MapOverlayController!.AddMarker(mapMarker);
             }
+            else
+                if (mapMarker.TexturePath != texturePath)
+                    mapMarker.TexturePath = texturePath;
 
             var vector4Color = new Vector3(markerInfo.Color.X, markerInfo.Color.Y, markerInfo.Color.Z);
 
@@ -92,8 +95,7 @@ namespace WukLamark.Render.KTK
                 iconId,
                 new Vector2(markerSize, markerSize),
                 useShapeColor,
-                vector4Color,
-                texturePath
+                vector4Color
                 );
 
             markersSeen.Add(markerId);
