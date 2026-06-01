@@ -36,76 +36,80 @@ internal sealed class GroupViewSection(GameStateReaderService gameStateReaderSer
         var groups = markerStorageService.GetVisibleGroups();
         var ungroupedMarkers = markerStorageService.GetUngroupedMarkers();
 
-        // "+ New Group" button
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
+        var avail = ImGui.GetContentRegionAvail();
+        using (var child = ImRaii.Child("GroupViewSectionChild", avail))
         {
-            OnCreateGroup?.Invoke();
-        }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Create New Group");
-        }
-
-        ImGui.Spacing();
-
-        foreach (var group in groups)
-        {
-            var groupMarkers = filteredMarkers.Where(m => group.MarkerIds.Contains(m.Id)).ToList();
-            if (groupMarkers.Count == 0 && filterCurrentZone) continue;
-
-            if (!string.IsNullOrEmpty(searchFilter))
+            // "+ New Group" button
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
             {
-                var groupNameMatches = markerStorageService.FindGroupByName(searchFilter);
-                if (groupMarkers.Count == 0 && groupNameMatches == null)
-                    continue;
+                OnCreateGroup?.Invoke();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Create New Group");
             }
 
-            var identifier = group.Id.ToString();
-            using var groupId = ImRaii.PushId(identifier);
+            ImGui.Spacing();
 
-            var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupMarkers.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
-
-            DrawGroupHeaderButtons(group, groupMarkers);
-
-            if (headerOpen)
+            foreach (var group in groups)
             {
-                if (groupMarkers.Count == 0)
+                var groupMarkers = filteredMarkers.Where(m => group.MarkerIds.Contains(m.Id)).ToList();
+                if (groupMarkers.Count == 0 && filterCurrentZone) continue;
+
+                if (!string.IsNullOrEmpty(searchFilter))
                 {
-                    using (ImRaii.PushIndent(10))
+                    var groupNameMatches = markerStorageService.FindGroupByName(searchFilter);
+                    if (groupMarkers.Count == 0 && groupNameMatches == null)
+                        continue;
+                }
+
+                var identifier = group.Id.ToString();
+                using var groupId = ImRaii.PushId(identifier);
+
+                var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupMarkers.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
+
+                DrawGroupHeaderButtons(group, groupMarkers);
+
+                if (headerOpen)
+                {
+                    if (groupMarkers.Count == 0)
                     {
-                        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No markers in this group.");
+                        using (ImRaii.PushIndent(10))
+                        {
+                            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No markers in this group.");
+                        }
                     }
+                    else
+                    {
+                        using var tableId = ImRaii.PushId($"GroupTable_{identifier}");
+                        tableComponent.Draw(groupMarkers, group);
+                    }
+                    ImGui.Spacing();
                 }
-                else
-                {
-                    using var tableId = ImRaii.PushId($"GroupTable_{identifier}");
-                    tableComponent.Draw(groupMarkers, group);
-                }
-                ImGui.Spacing();
             }
-        }
 
-        // Ungrouped markers section (markers that don't belong to any group)
-        var noGroupMarkers = filteredMarkers.Where(ungroupedMarkers.Contains).ToList();
-        if (!string.IsNullOrEmpty(searchFilter) && ungroupedMarkers.Count == 0)
-            return;
+            // Ungrouped markers section (markers that don't belong to any group)
+            var noGroupMarkers = filteredMarkers.Where(ungroupedMarkers.Contains).ToList();
+            if (!string.IsNullOrEmpty(searchFilter) && ungroupedMarkers.Count == 0)
+                return;
 
-        if (noGroupMarkers.Count > 0 || string.IsNullOrEmpty(searchFilter))
-        {
-            var ungroupedOpen = ImGui.CollapsingHeader($"Ungrouped ({noGroupMarkers.Count})###ungrouped", ImGuiTreeNodeFlags.DefaultOpen);
-            if (ungroupedOpen)
+            if (noGroupMarkers.Count > 0 || string.IsNullOrEmpty(searchFilter))
             {
-                if (ungroupedMarkers.Count == 0)
+                var ungroupedOpen = ImGui.CollapsingHeader($"Ungrouped ({noGroupMarkers.Count})###ungrouped", ImGuiTreeNodeFlags.DefaultOpen);
+                if (ungroupedOpen)
                 {
-                    using (ImRaii.PushIndent(10))
+                    if (ungroupedMarkers.Count == 0)
                     {
-                        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No ungrouped markers.");
+                        using (ImRaii.PushIndent(10))
+                        {
+                            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No ungrouped markers.");
+                        }
                     }
-                }
-                else
-                {
-                    using var tableId = ImRaii.PushId("GroupTableUngrouped");
-                    tableComponent.Draw(ungroupedMarkers);
+                    else
+                    {
+                        using var tableId = ImRaii.PushId("GroupTableUngrouped");
+                        tableComponent.Draw(ungroupedMarkers);
+                    }
                 }
             }
         }
@@ -119,19 +123,23 @@ internal sealed class GroupViewSection(GameStateReaderService gameStateReaderSer
         var multiSelect = IsMultiSelectActive?.Invoke() ?? false;
         var isShiftHeld = ImGui.GetIO().KeyShift;
 
-        var buttons = 3;
-        var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
-        var buttonSpacing = buttons % 2 == 0 ? buttons : buttons - 1;
-
-        var spacing = 5.0f;
-        var scopeIconSize = 18.0f * ImGuiHelpers.GlobalScale;
-        var totalWidth = (buttonSize * buttons) + (spacing * buttonSpacing) + scopeIconSize + spacing + 8;
-
-        ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalWidth + ImGui.GetCursorPosX());
-
         var groupScopeIcon = FontAwesomeIcon.EyeSlash;
         if (group.Scope == MarkerScope.Shared)
             groupScopeIcon = group.IsReadOnly ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
+
+        var buttons = 3;
+        var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
+        var buttonSpacing = buttons - 1;
+
+        var spacing = 5.0f;
+        var style = ImGui.GetStyle();
+        float scopeIconSize;
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            scopeIconSize = ImGui.CalcTextSize(groupScopeIcon.ToIconString()).X;
+
+        var totalWidth = (buttonSize * buttons) + (spacing * buttonSpacing) + scopeIconSize + spacing + style.WindowPadding.X + 5;
+
+        ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalWidth + ImGui.GetCursorPosX());
 
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {

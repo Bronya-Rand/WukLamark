@@ -49,8 +49,7 @@ internal sealed class MarkerTableComponent
     public void Draw(List<Marker> markers, MarkerGroup? parentGroup = null)
     {
         using var markerTableMode = ImRaii.Table("MarkerTable", 4,
-            ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY |
-            ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable);
+            ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
         if (!markerTableMode) return;
 
         // Setup columns
