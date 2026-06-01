@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using WukLamark.Models;
 using WukLamark.Windows.Components;
 
@@ -14,6 +15,10 @@ internal sealed class TableViewSection(MarkerTableComponent tableComponent)
         ImGui.Text($"Showing {filteredMarkers.Count} of {totalCount} markers");
         ImGui.Spacing();
 
-        tableComponent.Draw(filteredMarkers);
+        var avail = ImGui.GetContentRegionAvail();
+        using (var child = ImRaii.Child("TableViewSectionChild", avail))
+        {
+            tableComponent.Draw(filteredMarkers);
+        }
     }
 }

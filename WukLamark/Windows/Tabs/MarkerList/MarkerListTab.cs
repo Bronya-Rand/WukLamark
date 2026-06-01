@@ -386,7 +386,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
             searchBarSection.Draw();
 
             // Main content area with scrolling
-            using var child = ImRaii.Child("MarkerListChild", Vector2.Zero, true);
+            using var child = ImRaii.Child("MarkerListChild", Vector2.Zero);
 
             var visibleMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
 
