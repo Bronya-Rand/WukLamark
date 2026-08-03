@@ -61,7 +61,7 @@ namespace WukLamark.Windows.Tabs.Settings
                     configuration.Save();
                 ImGui.SameLine();
                 // Reset to default button for map marker size
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+                if (ImGuiComponents.IconButton("###ResetMapMarkerSize", FontAwesomeIcon.Undo))
                 {
                     configuration.MapMarkerMapSize = DefaultMapMarkerSize; // Default size
                     configuration.Save();
@@ -86,7 +86,7 @@ namespace WukLamark.Windows.Tabs.Settings
                     configuration.Save();
                 ImGui.SameLine();
                 // Reset to default button for map marker size
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+                if (ImGuiComponents.IconButton("###ResetMinimapMarkerSize", FontAwesomeIcon.Undo))
                 {
                     configuration.MapMarkerMinimapSize = DefaultMapMarkerSize; // Default size
                     configuration.Save();
