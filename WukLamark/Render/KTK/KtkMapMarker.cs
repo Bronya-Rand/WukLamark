@@ -1,6 +1,6 @@
 using System;
 using System.Numerics;
-using KamiToolKit.Overlay.MapOverlay;
+using KamiToolKit.MapOverlay;
 
 namespace WukLamark.Render.KTK
 {

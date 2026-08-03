@@ -5,13 +5,13 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using KamiToolKit;
-using KamiToolKit.Overlay.MapOverlay;
 using System;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
 using WukLamark.Utils;
 using WukLamark.Windows;
+using KamiToolKit.MapOverlay;
 
 namespace WukLamark;
 
