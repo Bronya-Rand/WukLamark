@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
@@ -5,13 +6,12 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using KamiToolKit;
-using System;
+using KamiToolKit.MapOverlay;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
 using WukLamark.Utils;
 using WukLamark.Windows;
-using KamiToolKit.MapOverlay;
 
 namespace WukLamark;
 
@@ -135,6 +135,7 @@ public sealed partial class Plugin : IDalamudPlugin
         Framework.RunOnFrameworkThread(() =>
         {
             MapOverlayController = new MapOverlayController();
+            MapOverlayController.Enable();
             Log.Debug("Initialized KTK.");
         }).Wait();
 
@@ -192,6 +193,7 @@ public sealed partial class Plugin : IDalamudPlugin
         CustomIconService.Dispose();
         CustomIconService = null!;
 
+        MapOverlayController.Disable();
         MapOverlayController.Dispose();
         KamiToolKitLibrary.Dispose();
 

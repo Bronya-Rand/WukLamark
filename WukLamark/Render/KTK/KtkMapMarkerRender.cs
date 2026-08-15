@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
-using Dalamud.Interface.Utility;
 using Dalamud.Utility;
 using WukLamark.Helpers;
 using WukLamark.Models;

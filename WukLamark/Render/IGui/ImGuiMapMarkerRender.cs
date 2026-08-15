@@ -30,13 +30,13 @@ namespace WukLamark.Render.IGui
             var formattedNotes = MapHelper.FormatMapTooltipNotes(markerInfo.Notes);
             var tooltipText = formattedNotes.Length > 0 ? $"{safeName}\n{formattedNotes}" : safeName;
 
-            MarkerRenderer.RenderMarker(drawList, 
-                markerInfo.ScreenPosition, 
-                markerInfo.Shape, 
-                markerInfo.Size, 
-                markerInfo.Color, 
-                markerInfo.GameIconId, 
-                markerInfo.CustomIconName, 
+            MarkerRenderer.RenderMarker(drawList,
+                markerInfo.ScreenPosition,
+                markerInfo.Shape,
+                markerInfo.Size,
+                markerInfo.Color,
+                markerInfo.GameIconId,
+                markerInfo.CustomIconName,
                 markerInfo.UseShapeColor);
 
             if (!plugin.Configuration.ShowWaymarkTooltips) return;

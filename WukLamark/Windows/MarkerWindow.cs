@@ -1,5 +1,4 @@
 using System;
-using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using WukLamark.Render;
 using WukLamark.Render.IGui;
 using WukLamark.Render.KTK;
