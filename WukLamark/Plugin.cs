@@ -5,6 +5,8 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using KamiToolKit;
+using KamiToolKit.MapOverlay;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
@@ -61,6 +63,8 @@ public sealed partial class Plugin : IDalamudPlugin
     // ═══════════════════════════════════════════════════════════════
     public const string Name = "WukLamark";
 
+    private const string PluginName = "WukLamark";
+
     /// <summary>Primary slash command: /wlmark</summary>
     private const string MarkerCommandName = "/wlmark";
     private const string MarkerCommandAlias = "/wuklamark";
@@ -87,6 +91,7 @@ public sealed partial class Plugin : IDalamudPlugin
 
     /// <summary>Service for rendering map markers on the full-screen area map</summary>
     private MarkerMapService MarkerMapService { get; init; }
+    internal MapOverlayController MapOverlayController { get; private set; } = null!; // KTK overlay controller
 
     /// <summary>Service for rendering map markers on the minimap</summary>
     private MarkerMinimapService MarkerMinimapService { get; init; }
@@ -125,6 +130,14 @@ public sealed partial class Plugin : IDalamudPlugin
         MainWindow = new MainWindow(this, GameStateReaderService);
         MarkerMapService = new MarkerMapService(this);
         MarkerMinimapService = new MarkerMinimapService(this);
+
+        KamiToolKitLibrary.Initialize(PluginInterface, Name);
+        Framework.RunOnFrameworkThread(() =>
+        {
+            MapOverlayController = new MapOverlayController();
+            MapOverlayController.Enable();
+            Log.Debug("Initialized KTK.");
+        }).Wait();
 
         WindowSystem.AddWindow(MainWindow);
 
@@ -180,6 +193,10 @@ public sealed partial class Plugin : IDalamudPlugin
         CustomIconService.Dispose();
         CustomIconService = null!;
 
+        MapOverlayController.Disable();
+        MapOverlayController.Dispose();
+        KamiToolKitLibrary.Dispose();
+
         // Unregister the slash command
         CommandManager.RemoveHandler(MarkerCommandName);
         CommandManager.RemoveHandler(MarkerCommandAlias);
@@ -209,7 +226,11 @@ public sealed partial class Plugin : IDalamudPlugin
     /// Called when the player changes territory (zone) in the game.
     /// -- Updates the current world ID in the LocationHelper to the current world ID.
     /// </summary>
-    private void OnTerritoryChange(uint _) => LocationHelper.UpdateCurrentWorldId();
+    private void OnTerritoryChange(uint _)
+    {
+        MapOverlayController.RemoveAllMarkers();
+        LocationHelper.UpdateCurrentWorldId();
+    }
 
     /// <summary>
     /// Handles the /wlmark slash command with optional arguments.

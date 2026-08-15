@@ -8,6 +8,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
 using WukLamark.Helpers;
 using WukLamark.Models;
+using WukLamark.Render;
 using WukLamark.Services;
 using WukLamark.Utils;
 
@@ -18,6 +19,7 @@ internal sealed class MarkerTableComponent
     private readonly Plugin plugin;
     private readonly GameStateReaderService gameStateReaderService;
     private readonly MarkerEditPopup editPopup;
+    private const float MaxIconHeight = 7f;
 
     #region Selection State
     private Marker? pendingEditMarker;
@@ -161,14 +163,13 @@ internal sealed class MarkerTableComponent
 
         var icon = marker.GetEffectiveIcon(template);
 
-        var colorU32 = ImGui.ColorConvertFloat4ToU32(icon.Color);
         var globalScale = ImGuiHelpers.GlobalScale;
         MarkerRenderer.RenderMarker(
             ImGui.GetWindowDrawList(),
             ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
             icon.Shape,
             8f * globalScale,
-            colorU32,
+            icon.Color,
             icon.GameIconId,
             icon.CustomIconName,
             icon.UseShapeColor

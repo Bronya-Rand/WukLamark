@@ -4,6 +4,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using WukLamark.Helpers;
+using WukLamark.Render;
 using WukLamark.Services;
 
 namespace WukLamark.Windows
@@ -56,9 +57,7 @@ namespace WukLamark.Windows
 
             foreach (var (position, shape, size, color, name, notes, iconId, customIconName, useShapeColorOnIcon) in service.MarkersToRender)
             {
-                var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
-
-                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId, customIconName, useShapeColorOnIcon);
+                MarkerRenderer.RenderMarker(drawList, position, shape, size, color, iconId, customIconName, useShapeColorOnIcon);
                 if (!plugin.Configuration.ShowWaymarkTooltips) continue;
                 if (Vector2.Distance(mousePos, position) > size + (2.0f * ImGuiHelpers.GlobalScale)) continue;
 
