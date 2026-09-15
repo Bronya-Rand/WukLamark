@@ -445,6 +445,7 @@ public sealed class MarkerStorageService
     public void SaveTemplate(MarkerTemplate template)
     {
         templateStore.Save(template);
+        InvalidateCache();
     }
 
     /// <summary>

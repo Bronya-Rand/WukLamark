@@ -29,10 +29,11 @@ namespace WukLamark.Windows.Tabs.MarkerList
 
         #endregion
 
-        #region Modals
+        #region Modals & Popups
 
         private readonly DeleteMarkerModal deleteMarkerModal;
         private readonly DeleteGroupModal deleteGroupModal;
+        private readonly MarkerEditPopup markerEditPopup;
         private readonly ImportConflictModal importConflictModal;
         private readonly GroupEditorModal groupEditorModal;
         private readonly CustomIconImageUploadModal customIconImageUploadModal;
@@ -73,6 +74,11 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 },
             };
 
+            markerEditPopup = new MarkerEditPopup(plugin)
+            {
+                OnSave = HandleMarkerSave,
+            };
+
             importConflictModal = new ImportConflictModal
             {
                 OnApplyImport = (result, choices, overwriteAll, importGroup) =>
@@ -94,14 +100,9 @@ namespace WukLamark.Windows.Tabs.MarkerList
             // Initialize components
             markerTableComponent = new MarkerTableComponent(plugin, plugin.GameStateReaderService)
             {
-                OnDeleteRequested = marker =>
-                {
-                    deleteMarkerModal.Open(marker);
-                },
+                OnDeleteRequested = deleteMarkerModal.Open,
                 OnFlagRequested = marker =>
-                {
-                    MapHelper.FlagMapLocation(marker.Position, marker.TerritoryId, marker.MapId, marker.Name);
-                },
+                    MapHelper.FlagMapLocation(marker.Position, marker.TerritoryId, marker.MapId, marker.Name),
                 OnExportRequested = marker =>
                 {
                     MarkerExportService.ExportShareToClipboard(marker);
@@ -112,7 +113,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
 
                     ResultNotifications.SendMessage(successMessage, MessageType.Success);
                 },
-                OnSaveRequested = HandleMarkerSave,
+                OnEditRequested = markerEditPopup.Open,
             };
 
             // Initialize sections
@@ -378,6 +379,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
             importConflictModal.Draw();
             groupEditorModal.Draw(plugin);
             customIconImageUploadModal.Draw();
+            markerEditPopup.Draw();
 
             // Header
             headerSection.Draw();
