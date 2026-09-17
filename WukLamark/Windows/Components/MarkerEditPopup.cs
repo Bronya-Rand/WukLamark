@@ -16,6 +16,10 @@ internal sealed class MarkerEditPopup(Plugin plugin)
     private readonly IconEditFields iconEditFields = new(plugin);
 
     #region Editing State
+    private bool isOpen = false;
+    private bool shouldOpen = false;
+    private Marker? editingMarker;
+    private MarkerGroup? editingMarkerGroup;
 
     private Guid? editingGroupId;
     private Guid? editingTemplateId;
@@ -30,11 +34,20 @@ internal sealed class MarkerEditPopup(Plugin plugin)
 
     public Action<Marker, MarkerEditResult>? OnSave { get; set; }
 
+    public void Open(Marker marker, MarkerGroup? markerGroup)
+    {
+        editingMarker = marker;
+        editingMarkerGroup = markerGroup;
+        LoadFromMarker(marker, markerGroup);
+        isOpen = true;
+        shouldOpen = true;
+    }
+
     /// <summary>
     /// Loads editing state from the given marker.
     /// </summary>
     /// <remarks>Call this before opening the popup.</remarks>
-    public void LoadFromMarker(Marker marker, MarkerGroup? markerGroup)
+    private void LoadFromMarker(Marker marker, MarkerGroup? markerGroup)
     {
         editingGroupId = markerGroup?.Id;
         editingTemplateId = marker.TemplateId;
@@ -48,28 +61,44 @@ internal sealed class MarkerEditPopup(Plugin plugin)
         iconEditFields.LoadFrom(marker.Icon);
     }
 
-    public void Draw(Marker marker, MarkerGroup? parentGroup = null)
+    public void Draw()
     {
-        var identifier = marker.Id.ToString();
-        using var editMarkerPopup = ImRaii.Popup($"EditMarker##{identifier}");
+        if (!isOpen || editingMarker == null) return;
 
-        if (!editMarkerPopup) return;
+        var identifier = editingMarker.Id.ToString();
+        var popupId = $"EditMarker##{identifier}";
 
-        var currentHash = plugin.MarkerStorageService.CurrentCharacterHash;
-        var isMarkerCreator = marker.CharacterHash != null &&
-                               currentHash != null &&
-                               marker.CharacterHash == currentHash;
-
-        // Inherit scope from group if marker is in a group
-        var isGrouped = parentGroup != null;
-        var effectiveScope = isGrouped ? parentGroup!.Scope : marker.Scope;
-
-        if (isGrouped)
+        if (shouldOpen)
         {
-            editingScope = parentGroup!.Scope;
+            ImGui.OpenPopup(popupId);
+            shouldOpen = false;
         }
 
-        var selectedScope = isGrouped ? parentGroup!.Scope : editingScope;
+        using var editMarkerPopup = ImRaii.Popup(popupId);
+        if (!editMarkerPopup)
+        {
+            if (!ImGui.IsPopupOpen(popupId))
+            {
+                isOpen = false;
+                editingMarker = null;
+                editingMarkerGroup = null;
+            }
+            return;
+        }
+
+        var currentHash = plugin.MarkerStorageService.CurrentCharacterHash;
+        var isMarkerCreator = editingMarker.CharacterHash != null &&
+                               currentHash != null &&
+                               editingMarker.CharacterHash == currentHash;
+
+        // Inherit scope from group if marker is in a group
+        var isGrouped = editingMarkerGroup != null;
+        var effectiveScope = isGrouped ? editingMarkerGroup!.Scope : editingMarker.Scope;
+
+        if (isGrouped)
+            editingScope = editingMarkerGroup!.Scope;
+
+        var selectedScope = isGrouped ? editingMarkerGroup!.Scope : editingScope;
         var canOpenEdit = false;
         var cannotEditReason = string.Empty;
 
@@ -77,11 +106,11 @@ internal sealed class MarkerEditPopup(Plugin plugin)
         if (isGrouped)
         {
             // Validate group permissions
-            var isGroupCreator = parentGroup!.CreatorHash != null &&
+            var isGroupCreator = editingMarkerGroup!.CreatorHash != null &&
                                  currentHash != null &&
-                                 parentGroup.CreatorHash == currentHash;
+                                 editingMarkerGroup.CreatorHash == currentHash;
 
-            if (parentGroup.Scope == MarkerScope.Personal)
+            if (editingMarkerGroup.Scope == MarkerScope.Personal)
             {
                 canOpenEdit = isGroupCreator;
                 if (!canOpenEdit)
@@ -89,7 +118,7 @@ internal sealed class MarkerEditPopup(Plugin plugin)
             }
             else
             {
-                if (parentGroup.IsReadOnly)
+                if (editingMarkerGroup.IsReadOnly)
                 {
                     canOpenEdit = isMarkerCreator;
                     if (!canOpenEdit)
@@ -97,9 +126,9 @@ internal sealed class MarkerEditPopup(Plugin plugin)
                 }
                 else
                 {
-                    canOpenEdit = !marker.IsReadOnly || isMarkerCreator;
+                    canOpenEdit = !editingMarker.IsReadOnly || isMarkerCreator;
                     if (!canOpenEdit)
-                        cannotEditReason = $"'{marker.Name}' is read-only and cannot be edited by non-creators";
+                        cannotEditReason = $"'{editingMarker.Name}' is read-only and cannot be edited by non-creators";
                 }
             }
         }
@@ -107,25 +136,25 @@ internal sealed class MarkerEditPopup(Plugin plugin)
         {
             // Validate individual marker permissions
             canOpenEdit = (effectiveScope == MarkerScope.Personal && isMarkerCreator) ||
-                          (effectiveScope == MarkerScope.Shared && (!marker.IsReadOnly || isMarkerCreator));
+                          (effectiveScope == MarkerScope.Shared && (!editingMarker.IsReadOnly || isMarkerCreator));
 
             if (!canOpenEdit)
             {
                 cannotEditReason = effectiveScope == MarkerScope.Personal
-                    ? $"Only the creator can edit '{marker.Name}'."
-                    : $"'{marker.Name}' is read-only and cannot be edited.";
+                    ? $"Only the creator can edit '{editingMarker.Name}'."
+                    : $"'{editingMarker.Name}' is read-only and cannot be edited.";
             }
         }
 
         // Exit early if user lacks permissions
         if (!canOpenEdit)
         {
-            Plugin.Log.Warning($"Edit popup opened without permission for marker '{marker.Id}'. {cannotEditReason}.");
+            Plugin.Log.Warning($"Edit popup opened without permission for marker '{editingMarker.Id}'. {cannotEditReason}.");
             ImGui.CloseCurrentPopup();
             return;
         }
 
-        var inheritedReadOnly = isGrouped && parentGroup!.Scope == MarkerScope.Shared && parentGroup.IsReadOnly;
+        var inheritedReadOnly = isGrouped && editingMarkerGroup!.Scope == MarkerScope.Shared && editingMarkerGroup.IsReadOnly;
         var isSharedReadOnly = selectedScope == MarkerScope.Shared && (editingReadOnly || inheritedReadOnly);
         var canEditGeneralFields = !isSharedReadOnly;
         var canEditScope = !isGrouped && isMarkerCreator && !editingReadOnly;
@@ -133,8 +162,8 @@ internal sealed class MarkerEditPopup(Plugin plugin)
 
         var canSave = !editingName.IsNullOrEmpty();
         // Saving only enabled if read-only state is false and is creator
-        if (selectedScope == MarkerScope.Shared && marker.IsReadOnly)
-            canSave = isMarkerCreator && editingReadOnly != marker.IsReadOnly;
+        if (selectedScope == MarkerScope.Shared && editingMarker.IsReadOnly)
+            canSave = isMarkerCreator && editingReadOnly != editingMarker.IsReadOnly;
 
         ImGui.Text("Edit Marker");
         ImGui.Separator();
@@ -150,7 +179,7 @@ internal sealed class MarkerEditPopup(Plugin plugin)
         // When a template is assigned, we disable the individual fields. 
         // The map renderer will read from the template instead of these local fields via GetEffective methods.
 
-        iconEditFields.Draw(identifier, marker.Name, disableTemplateFields);
+        iconEditFields.Draw(identifier, editingMarker.Name, disableTemplateFields);
 
         // Group assignment dropdown
         var groups = plugin.MarkerStorageService.GetVisibleGroups();
@@ -202,12 +231,16 @@ internal sealed class MarkerEditPopup(Plugin plugin)
                     Notes = editingNote,
                     GroupId = editingGroupId,
                     TemplateId = editingTemplateId,
-                    Scope = isGrouped ? parentGroup!.Scope : editingScope,
+                    Scope = isGrouped ? editingMarkerGroup!.Scope : editingScope,
                     IsReadOnly = selectedScope == MarkerScope.Shared && editingReadOnly,
                     AppliesToAllWorlds = editingAppliesToAllWorlds,
                     Icon = iconEditFields.ToMarkerIcon()
                 };
-                OnSave?.Invoke(marker, result);
+                OnSave?.Invoke(editingMarker, result);
+
+                isOpen = false;
+                editingMarker = null;
+                editingMarkerGroup = null;
                 ImGui.CloseCurrentPopup();
             }
 
@@ -215,6 +248,9 @@ internal sealed class MarkerEditPopup(Plugin plugin)
 
         if (ImGui.Button("Cancel###EditMarkerCancel"))
         {
+            isOpen = false;
+            editingMarker = null;
+            editingMarkerGroup = null;
             ImGui.CloseCurrentPopup();
         }
     }

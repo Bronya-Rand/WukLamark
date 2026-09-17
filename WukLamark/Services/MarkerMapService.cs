@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
@@ -17,10 +16,13 @@ using WukLamark.Windows;
 namespace WukLamark.Services
 {
     public sealed record MarkerMapRenderData(
+        Guid Id,
         Vector2 ScreenPosition,
+        Vector2 WorldPosition,
+        MarkerIconType SourceType,
         MarkerShape Shape,
         float Size,
-        uint ColorU32,
+        Vector4 Color,
         string Name,
         string? Notes,
         uint? GameIconId,
@@ -45,6 +47,8 @@ namespace WukLamark.Services
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
+        public uint SelectedMapId { get; private set; }
+        public float UIScale { get; private set; }
 
         // Map clip bounds for the window layer
         public float MapMinX { get; private set; }
@@ -112,12 +116,16 @@ namespace WukLamark.Services
                 return;
 
             var areaMap = (AtkUnitBase*)areaMapAddonPtr.Address;
-            if (areaMap == null || !areaMap->IsVisible || areaMap->UldManager.LoadedState != AtkLoadState.Loaded)
+            if (areaMap == null || ((!areaMap->IsVisible || areaMap->UldManager.LoadedState != AtkLoadState.Loaded) && !plugin.Configuration.UseKTK))
                 return;
+            UIScale = areaMap->Scale;
 
             var agentMap = AgentMap.Instance();
-            if (agentMap == null || agentMap->CurrentMapId == 0)
+            if (agentMap == null || agentMap->CurrentMapId == 0 || agentMap->SelectedMapId == 0)
                 return;
+            // Update the cached SelectedMapId if it has changed
+            if (agentMap->SelectedMapId != SelectedMapId)
+                SelectedMapId = agentMap->SelectedMapId;
 
             // ═══════════════════════════════════════════════════════════════
             // STEP 2: Locate critical UI nodes
@@ -145,6 +153,7 @@ namespace WukLamark.Services
             // STEP 4: Calculate static map center screen position
             // ═══════════════════════════════════════════════════════════════
 
+            var globalScale = ImGuiHelpers.GlobalScale;
             Vector2 mapCenterScreenPos;
             if (imageNode->IsVisible())
             {
@@ -179,7 +188,6 @@ namespace WukLamark.Services
                 var markerCenterX = nodeX + (node->Width / 2f * node->ScaleX);
                 var markerCenterY = nodeY + (node->Height / 2f * node->ScaleY);
 
-                var globalScale = ImGuiHelpers.GlobalScale;
                 var mapOffsetX = 16.0f * areaMap->Scale * globalScale;
                 var mapOffsetY = 52.0f * areaMap->Scale * globalScale;
 
@@ -212,25 +220,26 @@ namespace WukLamark.Services
 
             var multiplierForMarkers = GetMultiplier(zoomIndex, areaMap->Scale);
             var mapCenterWorldPos = Vector3.Zero;
-            var currentMapId = agentMap->SelectedMapId;
 
             foreach (var marker in plugin.MarkerStorageService.GetVisibleMarkers())
             {
                 // Early culling
                 if (!marker.AppliesToAllWorlds && marker.WorldId != currentWorldId)
                     continue; // Wrong world
-                if (marker.MapId != currentMapId)
+                if (marker.MapId != SelectedMapId)
                     continue; // Wrong map
                 if (marker.WardId != -1 && marker.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
 
+                var markerWorldPos = new Vector2(marker.Position.X, marker.Position.Z);
+
                 // Visibility radius check
-                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0 && !plugin.Configuration.UseKTK)
                 {
                     var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
                     var radiusSquared = marker.Icon.VisibilityRadius * marker.Icon.VisibilityRadius;
 
-                    if (distSquared > radiusSquared)
+                    if (distSquared > radiusSquared && agentMap->SelectedMapId == agentMap->CurrentMapId)
                         continue; // Beyond visibility radius — don't render
                 }
 
@@ -296,16 +305,15 @@ namespace WukLamark.Services
                     customIconName = marker.Icon.CustomIconName;
                 }
 
-                var colorU32 = ImGui.ColorConvertFloat4ToU32(markerColor);
                 var baseMarkerSize = configuration.MapMarkerMapSize;
                 // Override base size if marker has an explicit size set
                 if (markerSize > 0.0)
                     baseMarkerSize = markerSize;
-                var finalMarkerSize = baseMarkerSize * ImGuiHelpers.GlobalScale;
+                var finalMarkerSize = baseMarkerSize * globalScale;
 
                 if (gameIconId != null || !customIconName.IsNullOrEmpty())
                 {
-                    var deSize = 6.0f / areaMap->Scale * ImGuiHelpers.GlobalScale;
+                    var deSize = 6.0f / areaMap->Scale * globalScale;
 
                     Vector2 iconSize;
                     if (!customIconName.IsNullOrEmpty())
@@ -329,39 +337,40 @@ namespace WukLamark.Services
                 }
 
                 // Apply visibility radius fade (last 20% of radius)
+                // Only for ImGui rendering
                 var targetAlpha = 1.0f;
-                if (configuration.FadeWaymarkOnMapEdge && visibilityRadius > 0)
+                if (!plugin.Configuration.UseKTK)
                 {
-                    var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
-                    var fadeStart = visibilityRadius * 0.8f;
-                    var fadeStartSquared = fadeStart * fadeStart;
-
-                    if (distSquared > fadeStartSquared)
+                    if (configuration.FadeWaymarkOnMapEdge && visibilityRadius > 0)
                     {
-                        var dist = MathF.Sqrt(distSquared); // Only apply when fading
-                        targetAlpha = 1.0f - ((dist - fadeStart) / (visibilityRadius - fadeStart));
+                        var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
+                        var fadeStart = visibilityRadius * 0.8f;
+                        var fadeStartSquared = fadeStart * fadeStart;
+
+                        if (distSquared > fadeStartSquared)
+                        {
+                            var dist = MathF.Sqrt(distSquared); // Only apply when fading
+                            targetAlpha = 1.0f - ((dist - fadeStart) / (visibilityRadius - fadeStart));
+                        }
                     }
+
+                    if (configuration.FadeWaymarkOnMapEdge && isClamped)
+                    {
+                        targetAlpha = Math.Min(targetAlpha, configuration.MapEdgeFadeAlpha);
+                    }
+
                 }
 
-                if (configuration.FadeWaymarkOnMapEdge && isClamped)
-                {
-                    targetAlpha = Math.Min(targetAlpha, configuration.MapEdgeFadeAlpha);
-                }
-
-                if (targetAlpha < 1.0f)
-                {
-                    targetAlpha = Math.Clamp(targetAlpha, 0f, 1f);
-                    // Modify the U32 color's alpha channel
-                    var originalAlpha = ((colorU32 >> 24) & 0xFF) / 255f;
-                    var a = (uint)(targetAlpha * originalAlpha * 255f);
-                    colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
-                }
+                var vector4Color = new Vector4(markerColor.X, markerColor.Y, markerColor.Z, targetAlpha);
 
                 MarkersToRender.Add(new MarkerMapRenderData(
+                    marker.Id,
                     new Vector2(markerScreenX, markerScreenY),
+                    markerWorldPos,
+                    marker.Icon.SourceType,
                     markerShape,
                     finalMarkerSize,
-                    colorU32,
+                    vector4Color,
                     marker.Name,
                     marker.Notes.IsNullOrEmpty() ? null : marker.Notes,
                     gameIconId,

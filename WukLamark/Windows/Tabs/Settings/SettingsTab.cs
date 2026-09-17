@@ -5,21 +5,41 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using WukLamark.Utils;
+using WukLamark.Windows.Sections.Modals;
 
 namespace WukLamark.Windows.Tabs.Settings
 {
-    internal sealed class SettingsTab(Plugin plugin)
+    internal sealed class SettingsTab
     {
-        private readonly Configuration configuration = plugin.Configuration;
-        private readonly Plugin plugin = plugin;
+        private readonly Configuration configuration;
+        private readonly Plugin plugin;
+
+        private readonly KTKExperimentalModal ktkModal;
 
         private const float DefaultMapMarkerSize = 8.0f;
 
         /// <summary>Tracks whether the "Clear All" confirmation dialog is shown</summary>
         private bool showClearConfirmation = false;
 
+        public SettingsTab(Plugin plugin)
+        {
+            this.plugin = plugin;
+            configuration = plugin.Configuration;
+
+            ktkModal = new KTKExperimentalModal
+            {
+                OnConfirm = () =>
+                {
+                    configuration.UseKTK = true;
+                    configuration.Save();
+                }
+            };
+        }
+
         public void Draw()
         {
+            ktkModal.Draw();
+
             var avail = ImGui.GetContentRegionAvail();
 
             using (var child = ImRaii.Child("##SettingsTabChild", avail))
@@ -61,7 +81,7 @@ namespace WukLamark.Windows.Tabs.Settings
                     configuration.Save();
                 ImGui.SameLine();
                 // Reset to default button for map marker size
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+                if (ImGuiComponents.IconButton("###ResetMapMarkerSize", FontAwesomeIcon.Undo))
                 {
                     configuration.MapMarkerMapSize = DefaultMapMarkerSize; // Default size
                     configuration.Save();
@@ -86,7 +106,7 @@ namespace WukLamark.Windows.Tabs.Settings
                     configuration.Save();
                 ImGui.SameLine();
                 // Reset to default button for map marker size
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+                if (ImGuiComponents.IconButton("###ResetMinimapMarkerSize", FontAwesomeIcon.Undo))
                 {
                     configuration.MapMarkerMinimapSize = DefaultMapMarkerSize; // Default size
                     configuration.Save();
@@ -137,6 +157,27 @@ namespace WukLamark.Windows.Tabs.Settings
                 {
                     configuration.ShowWaymarkTooltips = showTooltips;
                     configuration.Save();
+                }
+
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
+
+                ImGui.TextColored(new Vector4(1.0f, 1.0f, 0.0f, 1.0f), "Experimental");
+                ImGui.TextDisabled("These features are experimental and may not work as expected.");
+                ImGui.Spacing();
+
+                var useKamiToolkit = configuration.UseKTK;
+                if (ImGui.Checkbox("Use Native (KamiToolkit)", ref useKamiToolkit))
+                {
+                    if (useKamiToolkit && !configuration.UseKTK)
+                        ktkModal.Open();
+                    else if (!useKamiToolkit && configuration.UseKTK)
+                    {
+                        configuration.UseKTK = false;
+                        configuration.Save();
+                        plugin.MapOverlayController.RemoveAllMarkers();
+                    }
                 }
 
                 ImGui.Spacing();

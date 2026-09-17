@@ -8,6 +8,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
 using WukLamark.Helpers;
 using WukLamark.Models;
+using WukLamark.Render;
 using WukLamark.Services;
 using WukLamark.Utils;
 
@@ -17,20 +18,15 @@ internal sealed class MarkerTableComponent
 {
     private readonly Plugin plugin;
     private readonly GameStateReaderService gameStateReaderService;
-    private readonly MarkerEditPopup editPopup;
 
     #region Selection State
-    private Marker? pendingEditMarker;
-    private MarkerGroup? pendingEditParentGroup;
-    private bool pendingEditPopupOpenRequested;
-
     private int selectionAnchorIndex = -1;
     public HashSet<Guid> SelectedMarkerIds { get; } = [];
     public bool IsMultiSelect => SelectedMarkerIds.Count > 1;
     #endregion
 
     #region Callback Actions
-    public Action<Marker, MarkerEditResult>? OnSaveRequested { get; set; }
+    public Action<Marker, MarkerGroup?>? OnEditRequested { get; set; }
     public Action<Marker>? OnFlagRequested { get; set; }
     public Action<List<Marker>>? OnExportRequested { get; set; }
     public Action<List<Marker>>? OnDeleteRequested { get; set; }
@@ -40,10 +36,6 @@ internal sealed class MarkerTableComponent
     {
         this.plugin = plugin;
         this.gameStateReaderService = gameStateReaderService;
-        editPopup = new MarkerEditPopup(plugin)
-        {
-            OnSave = (marker, result) => OnSaveRequested?.Invoke(marker, result)
-        };
     }
 
     public void Draw(List<Marker> markers, MarkerGroup? parentGroup = null)
@@ -89,7 +81,7 @@ internal sealed class MarkerTableComponent
                     {
                         GetPermissionsForMarker(marker, parentGroup, out _, out _, out var canEdit, out _);
                         if (canEdit)
-                            HandleOnEditMarker(marker, parentGroup);
+                            OnEditRequested?.Invoke(marker, parentGroup);
                     }
                     else if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                     {
@@ -134,25 +126,6 @@ internal sealed class MarkerTableComponent
                 DrawCreatedColumn(marker);
             }
         }
-
-        if (pendingEditMarker != null)
-        {
-            var popupId = $"EditMarker##{pendingEditMarker.Id}";
-
-            if (pendingEditPopupOpenRequested)
-            {
-                ImGui.OpenPopup(popupId);
-                pendingEditPopupOpenRequested = false;
-            }
-            editPopup.Draw(pendingEditMarker, pendingEditParentGroup);
-
-            if (!ImGui.IsPopupOpen(popupId))
-            {
-                pendingEditMarker = null;
-                pendingEditParentGroup = null;
-                pendingEditPopupOpenRequested = false;
-            }
-        }
     }
 
     private void DrawMarkerColumn(Marker marker, MarkerTemplate? template = null)
@@ -161,14 +134,13 @@ internal sealed class MarkerTableComponent
 
         var icon = marker.GetEffectiveIcon(template);
 
-        var colorU32 = ImGui.ColorConvertFloat4ToU32(icon.Color);
         var globalScale = ImGuiHelpers.GlobalScale;
         MarkerRenderer.RenderMarker(
             ImGui.GetWindowDrawList(),
             ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
             icon.Shape,
             8f * globalScale,
-            colorU32,
+            icon.Color,
             icon.GameIconId,
             icon.CustomIconName,
             icon.UseShapeColor
@@ -251,7 +223,7 @@ internal sealed class MarkerTableComponent
 
         using (ImRaii.Disabled(!canEdit))
             if (ImGui.MenuItem("Edit Marker"))
-                HandleOnEditMarker(marker, parentGroup);
+                OnEditRequested?.Invoke(marker, parentGroup);
 
         if (!canEdit)
         {
@@ -353,13 +325,6 @@ internal sealed class MarkerTableComponent
         SelectedMarkerIds.Clear();
         SelectedMarkerIds.Add(clickedId);
         selectionAnchorIndex = clickedIndex;
-    }
-    private void HandleOnEditMarker(Marker marker, MarkerGroup? parentGroup)
-    {
-        pendingEditMarker = marker;
-        pendingEditParentGroup = parentGroup;
-        pendingEditPopupOpenRequested = true;
-        editPopup.LoadFromMarker(marker, parentGroup);
     }
     private void GetPermissionsForMarker(Marker marker, MarkerGroup? parentGroup, out bool isLoggedIn, out bool isCreator, out bool canEdit, out bool canDelete)
     {

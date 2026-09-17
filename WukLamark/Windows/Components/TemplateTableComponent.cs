@@ -8,6 +8,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
 using WukLamark.Models;
+using WukLamark.Render;
 using WukLamark.Services;
 using WukLamark.Utils;
 
@@ -161,7 +162,6 @@ namespace WukLamark.Windows.Components
         {
             ImGui.TableSetColumnIndex(0);
 
-            var colorU32 = ImGui.ColorConvertFloat4ToU32(template.DefaultIcon.Color);
             var globalScale = ImGuiHelpers.GlobalScale;
 
             MarkerRenderer.RenderMarker(
@@ -169,7 +169,7 @@ namespace WukLamark.Windows.Components
                 ImGui.GetCursorScreenPos() + new Vector2(20f * globalScale, 10f * globalScale),
                 template.DefaultIcon.Shape,
                 8f * globalScale,
-                colorU32,
+                template.DefaultIcon.Color,
                 template.DefaultIcon.GameIconId,
                 template.DefaultIcon.CustomIconName,
                 template.DefaultIcon.UseShapeColor
