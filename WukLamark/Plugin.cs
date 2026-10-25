@@ -65,8 +65,6 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
     // ═══════════════════════════════════════════════════════════════
     public const string Name = "WukLamark";
 
-    private const string PluginName = "WukLamark";
-
     /// <summary>Primary slash command: /wlmark</summary>
     private const string MarkerCommandName = "/wlmark";
     private const string MarkerCommandAlias = "/wuklamark";
@@ -99,7 +97,7 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
     /// <summary>Service for rendering map markers on the minimap</summary>
     private MarkerMinimapService MarkerMinimapService { get; set;  } = null!;
 
-    public Task LoadAsync(CancellationToken cancellationToken)
+    public async Task LoadAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         
@@ -135,13 +133,13 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
         MarkerMapService = new MarkerMapService(this);
         MarkerMinimapService = new MarkerMinimapService(this);
 
-        KamiToolKitLibrary.Initialize(PluginInterface, Name);
+        await KamiToolKitLibrary.InitializeAsync(PluginInterface, Name);
         Framework.Run(() =>
         {
             MapOverlayController = new MapOverlayController();
             MapOverlayController.Enable();
             Log.Debug("Initialized KTK.");
-        }).Wait();
+        }, cancellationToken).Wait(cancellationToken);
 
         WindowSystem.AddWindow(MainWindow);
 
@@ -171,11 +169,9 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
         // Register plugin UI toggle buttons in the plugin installer
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUi;
-        
-        return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         // Unregister login/logout events
         ClientState.Login -= OnLogin;
@@ -198,15 +194,12 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
         CustomIconService.Dispose();
         CustomIconService = null!;
 
-        MapOverlayController.Disable();
-        MapOverlayController.Dispose();
-        KamiToolKitLibrary.Dispose();
+        await Framework.Run(MapOverlayController.Dispose);
+        await KamiToolKitLibrary.DisposeAsync();
 
         // Unregister the slash command
         CommandManager.RemoveHandler(MarkerCommandName);
         CommandManager.RemoveHandler(MarkerCommandAlias);
-        
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>
