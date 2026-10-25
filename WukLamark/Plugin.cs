@@ -134,12 +134,12 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
         MarkerMinimapService = new MarkerMinimapService(this);
 
         await KamiToolKitLibrary.InitializeAsync(PluginInterface, Name);
-        Framework.Run(() =>
+        await Framework.Run(() =>
         {
             MapOverlayController = new MapOverlayController();
             MapOverlayController.Enable();
             Log.Debug("Initialized KTK.");
-        }, cancellationToken).Wait(cancellationToken);
+        }, cancellationToken);
 
         WindowSystem.AddWindow(MainWindow);
 
