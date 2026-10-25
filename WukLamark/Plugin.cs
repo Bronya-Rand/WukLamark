@@ -1,5 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -13,7 +15,7 @@ using WukLamark.Windows;
 
 namespace WukLamark;
 
-public sealed partial class Plugin : IDalamudPlugin
+public sealed partial class Plugin : IAsyncDalamudPlugin
 {
     // ═══════════════════════════════════════════════════════════════
     // DALAMUD PLUGIN SERVICES
@@ -66,36 +68,38 @@ public sealed partial class Plugin : IDalamudPlugin
     private const string MarkerCommandAlias = "/wuklamark";
 
     /// <summary>Persistent configuration storage for map markers and settings</summary>
-    public Configuration Configuration { get; init; }
+    public Configuration Configuration { get; private set; } = null!;
 
     /// <summary>Business logic service for marker operations (save, load, delete)</summary>
-    public MarkerService MarkerService { get; init; }
+    public MarkerService MarkerService { get; private set; } = null!;
 
     /// <summary>Background service for loading and caching game icons</summary>
-    public IconBrowserService IconBrowserService { get; init; }
+    public IconBrowserService IconBrowserService { get; private set; } = null!;
+
     public static CustomIconService CustomIconService { get; private set; } = null!;
-    public GameStateReaderService GameStateReaderService { get; init; } = new();
+    public GameStateReaderService GameStateReaderService { get; private set; } = null!;
 
     /// <summary>Handles cross-character marker persistence and scoping</summary>
-    public MarkerStorageService MarkerStorageService { get; init; }
+    public MarkerStorageService MarkerStorageService { get; private set; } = null!;
 
     /// <summary>Manages rendering of all plugin windows</summary>
     public readonly WindowSystem WindowSystem = new(Name);
 
     /// <summary>Main window displaying list of saved map markers and management UI</summary>
-    private MainWindow MainWindow { get; init; }
+    private MainWindow MainWindow { get; set; } = null!;
 
     /// <summary>Service for rendering map markers on the full-screen area map</summary>
-    private MarkerMapService MarkerMapService { get; init; }
+    private MarkerMapService MarkerMapService { get; set; } = null!;
 
     /// <summary>Service for rendering map markers on the minimap</summary>
-    private MarkerMinimapService MarkerMinimapService { get; init; }
+    private MarkerMinimapService MarkerMinimapService { get; set;  } = null!;
 
-    public Plugin()
+    public Task LoadAsync(CancellationToken cancellationToken)
     {
-        // Load or create configuration
+        cancellationToken.ThrowIfCancellationRequested();
+        
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-
+        
         // Initialize services
         var pluginConfigDir = PluginInterface.GetPluginConfigDirectory();
         MarkerStorageService = new MarkerStorageService(pluginConfigDir, Configuration, ReliableFileStorage);
@@ -154,10 +158,11 @@ public sealed partial class Plugin : IDalamudPlugin
         // Register plugin UI toggle buttons in the plugin installer
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUi;
-
-        Log.Information($"===Speak to Wuk Lamat [Ready]===");
+        
+        return Task.CompletedTask;
     }
-    public void Dispose()
+
+    public ValueTask DisposeAsync()
     {
         // Unregister login/logout events
         ClientState.Login -= OnLogin;
@@ -183,6 +188,8 @@ public sealed partial class Plugin : IDalamudPlugin
         // Unregister the slash command
         CommandManager.RemoveHandler(MarkerCommandName);
         CommandManager.RemoveHandler(MarkerCommandAlias);
+        
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>
@@ -298,7 +305,7 @@ public sealed partial class Plugin : IDalamudPlugin
             }
 
             // Check if template overrides group
-            if (template != null && template.GroupId.HasValue && group != null && template.GroupId.Value != group.Id)
+            if (template is { GroupId: not null } && group != null && template.GroupId.Value != group.Id)
             {
                 ResultNotifications.SendMessage($"The template '{template.Name}' enforces its own group. Ignoring explicitly specified group '{group.Name}'.", MessageType.Warning);
             }
@@ -307,7 +314,7 @@ public sealed partial class Plugin : IDalamudPlugin
             var scope = template?.DefaultScope ?? group?.Scope ?? MarkerScope.Personal;
             var crossworld = template?.DefaultAppliesToAllWorlds ?? false;
 
-            MarkerService.SaveCurrentLocation(group, scope, crossworld, template?.Id, false);
+            MarkerService.SaveCurrentLocation(group, scope, crossworld, template?.Id);
             return;
         }
 
