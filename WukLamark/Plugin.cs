@@ -7,6 +7,8 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using KamiToolKit;
+using KamiToolKit.MapOverlay;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
@@ -90,11 +92,12 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
 
     /// <summary>Service for rendering map markers on the full-screen area map</summary>
     private MarkerMapService MarkerMapService { get; set; } = null!;
+    internal MapOverlayController MapOverlayController { get; private set; } = null!; // KTK overlay controller
 
     /// <summary>Service for rendering map markers on the minimap</summary>
     private MarkerMinimapService MarkerMinimapService { get; set;  } = null!;
 
-    public Task LoadAsync(CancellationToken cancellationToken)
+    public async Task LoadAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         
@@ -130,6 +133,14 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
         MarkerMapService = new MarkerMapService(this);
         MarkerMinimapService = new MarkerMinimapService(this);
 
+        await KamiToolKitLibrary.InitializeAsync(PluginInterface, Name);
+        await Framework.Run(() =>
+        {
+            MapOverlayController = new MapOverlayController();
+            MapOverlayController.Enable();
+            Log.Debug("Initialized KTK.");
+        }, cancellationToken);
+
         WindowSystem.AddWindow(MainWindow);
 
         // Register the /wlmark command
@@ -158,11 +169,9 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
         // Register plugin UI toggle buttons in the plugin installer
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUi;
-        
-        return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         // Unregister login/logout events
         ClientState.Login -= OnLogin;
@@ -185,11 +194,12 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
         CustomIconService.Dispose();
         CustomIconService = null!;
 
+        await Framework.Run(MapOverlayController.Dispose);
+        await KamiToolKitLibrary.DisposeAsync();
+
         // Unregister the slash command
         CommandManager.RemoveHandler(MarkerCommandName);
         CommandManager.RemoveHandler(MarkerCommandAlias);
-        
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>
@@ -216,7 +226,11 @@ public sealed partial class Plugin : IAsyncDalamudPlugin
     /// Called when the player changes territory (zone) in the game.
     /// -- Updates the current world ID in the LocationHelper to the current world ID.
     /// </summary>
-    private void OnTerritoryChange(uint _) => LocationHelper.UpdateCurrentWorldId();
+    private void OnTerritoryChange(uint _)
+    {
+        MapOverlayController.RemoveAllMarkers();
+        LocationHelper.UpdateCurrentWorldId();
+    }
 
     /// <summary>
     /// Handles the /wlmark slash command with optional arguments.
