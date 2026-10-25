@@ -27,7 +27,7 @@ namespace WukLamark.Services
         public IconBrowserService(IDataManager dataManager)
         {
             this.dataManager = dataManager;
-            Plugin.Framework.RunOnFrameworkThread(() => LoadIconsAsync(cts.Token));
+            Plugin.Framework.Run(() => LoadIconsAsync(cts.Token));
         }
         private void LoadIconsAsync(CancellationToken token)
         {
@@ -36,19 +36,19 @@ namespace WukLamark.Services
                 var uniqueIcons = new Dictionary<uint, IconInfo>();
 
                 // Load from sheets with uint icon IDs
-                LoadIconsFromLumina(dataManager.GetExcelSheet<Item>()!, row => row.Icon, row => row.Name.ToString(), "Item", uniqueIcons, token);
-                LoadIconsFromLumina(dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()!, row => row.Icon, row => row.Name.ToString(), "Action", uniqueIcons, token);
-                LoadIconsFromLumina(dataManager.GetExcelSheet<Emote>()!, row => row.Icon, row => row.Name.ToString(), "Emote", uniqueIcons, token);
-                LoadIconsFromLumina(dataManager.GetExcelSheet<Status>()!, row => row.Icon, row => row.Name.ToString(), "Status", uniqueIcons, token);
-                LoadIconsFromLumina(dataManager.GetExcelSheet<QuestLinkMarkerIcon>()!, row => row.Icon, row => $"Quest Icon {row.RowId}", "Quest", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<Item>(), row => row.Icon, row => row.Name.ToString(), "Item", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>(), row => row.Icon, row => row.Name.ToString(), "Action", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<Emote>(), row => row.Icon, row => row.Name.ToString(), "Emote", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<Status>(), row => row.Icon, row => row.Name.ToString(), "Status", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<QuestLinkMarkerIcon>(), row => row.Icon, row => $"Quest Icon {row.RowId}", "Quest", uniqueIcons, token);
                 // Load from sheets with int icon IDs   
-                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<Perform>()!, row => row.Icon, row => row.Name.ToString(), "Perform", uniqueIcons, token);
-                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<GeneralAction>()!, row => row.Icon, row => row.Name.ToString(), "General", uniqueIcons, token);
-                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<MainCommand>()!, row => row.Icon, row => row.Name.ToString(), "Main", uniqueIcons, token);
-                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<ExtraCommand>()!, row => row.Icon, row => row.Name.ToString(), "Extra", uniqueIcons, token);
+                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<Perform>(), row => row.Icon, row => row.Name.ToString(), "Perform", uniqueIcons, token);
+                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<GeneralAction>(), row => row.Icon, row => row.Name.ToString(), "General", uniqueIcons, token);
+                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<MainCommand>(), row => row.Icon, row => row.Name.ToString(), "Main", uniqueIcons, token);
+                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<ExtraCommand>(), row => row.Icon, row => row.Name.ToString(), "Extra", uniqueIcons, token);
 
-                LoadMacroIcons(dataManager.GetExcelSheet<MacroIcon>()!, uniqueIcons, token);
-                LoadMapSymbols(dataManager.GetExcelSheet<MapSymbol>()!, uniqueIcons, token);
+                LoadMacroIcons(dataManager.GetExcelSheet<MacroIcon>(), uniqueIcons, token);
+                LoadMapSymbols(dataManager.GetExcelSheet<MapSymbol>(), uniqueIcons, token);
 
                 if (token.IsCancellationRequested) return;
 
@@ -123,7 +123,7 @@ namespace WukLamark.Services
                 var iconId = (uint)row.Icon;
 
                 if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
-                var name = row.PlaceName.Value.Name.ToString() ?? $"Map Symbol {iconId}";
+                var name = row.PlaceName.Value.Name.ToString();
 
                 // Check if loadable
                 if (!TryAddIcon(iconId, name, "Map", uniqueIcons))
@@ -147,7 +147,6 @@ namespace WukLamark.Services
         {
             cts.Cancel();
             cts.Dispose();
-            GC.SuppressFinalize(this);
         }
     }
 }
